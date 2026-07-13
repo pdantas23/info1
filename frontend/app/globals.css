@@ -1,0 +1,98 @@
+@import "tailwindcss";
+
+:root {
+  --background: #f7faf9;
+  --foreground: #0f2e2a;
+
+  --color-brand-50: #eefaf6;
+  --color-brand-100: #d3f2e7;
+  --color-brand-200: #a5e4cf;
+  --color-brand-300: #6fd0b4;
+  --color-brand-400: #3fb797;
+  --color-brand-500: #219b7d;
+  --color-brand-600: #167c66;
+  --color-brand-700: #146353;
+  --color-brand-800: #144f44;
+  --color-brand-900: #0f2e2a;
+
+  --color-accent-400: #ffb648;
+  --color-accent-500: #ff9d1a;
+  --color-accent-600: #e88300;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  --font-heading: var(--font-heading-sora);
+
+  --color-brand-50: var(--color-brand-50);
+  --color-brand-100: var(--color-brand-100);
+  --color-brand-200: var(--color-brand-200);
+  --color-brand-300: var(--color-brand-300);
+  --color-brand-400: var(--color-brand-400);
+  --color-brand-500: var(--color-brand-500);
+  --color-brand-600: var(--color-brand-600);
+  --color-brand-700: var(--color-brand-700);
+  --color-brand-800: var(--color-brand-800);
+  --color-brand-900: var(--color-brand-900);
+
+  --color-accent-400: var(--color-accent-400);
+  --color-accent-500: var(--color-accent-500);
+  --color-accent-600: var(--color-accent-600);
+
+  --animate-marquee: marquee 40s linear infinite;
+  --animate-fade-up: fade-up 0.8s ease-out both;
+  --animate-glow-pulse: glow-pulse 3.5s ease-in-out infinite;
+  --animate-shine: shine 2.6s ease-in-out infinite;
+}
+
+@keyframes marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes glow-pulse {
+  0%,
+  100% {
+    opacity: 0.55;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.9;
+    transform: scale(1.06);
+  }
+}
+
+@keyframes shine {
+  0% {
+    transform: translateX(-150%);
+  }
+  60%,
+  100% {
+    transform: translateX(350%);
+  }
+}
+
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+}

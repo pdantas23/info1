@@ -1,8 +1,10 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+# Monorepo com dois projetos Next.js (frontend/ e api/): os padrões abaixo não
+# têm barra inicial de propósito, para valerem em qualquer subpasta.
 
 # dependencies
-/node_modules
-/.pnp
+node_modules
+.pnp
 .pnp.*
 .yarn/*
 !.yarn/patches
@@ -11,14 +13,14 @@
 !.yarn/versions
 
 # testing
-/coverage
+coverage
 
 # next.js
-/.next/
-/out/
+.next/
+out/
 
 # production
-/build
+build
 
 # misc
 .DS_Store
@@ -32,9 +34,13 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+!.env.example
 
 # vercel
 .vercel
+
+# arquivos de mídia originais (não comprimidos, não servidos pelo Next.js)
+frontend/raw-media
 
 # typescript
 *.tsbuildinfo
