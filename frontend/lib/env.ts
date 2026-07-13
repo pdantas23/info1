@@ -14,10 +14,9 @@ export const env = {
   meta: {
     pixelId: process.env.NEXT_PUBLIC_META_PIXEL_ID ?? "",
   },
-  stripe: {
-    publishableKey: process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? "",
-  },
   // URL da API separada (checkout, leads, stripe webhook, meta-events).
+  // A Stripe em si (chaves, Checkout Session) só existe do lado da api/,
+  // já que o pagamento acontece 100% na página hospedada pela Stripe.
   apiUrl: process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001",
   siteUrl: process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000",
 };

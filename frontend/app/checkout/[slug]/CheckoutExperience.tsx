@@ -2,8 +2,6 @@
 
 import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from "react";
 import Link from "next/link";
-import { loadStripe } from "@stripe/stripe-js";
-import { CardElement, Elements, useElements, useStripe } from "@stripe/react-stripe-js";
 import { Container } from "@/components/ui/Container";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
@@ -15,20 +13,7 @@ import { trackEvent } from "@/lib/meta/pixel";
 import { env } from "@/lib/env";
 import type { Product } from "@/types";
 
-type Step = "presentation" | "form" | "pay" | "success";
-
-const stripePromise = env.stripe.publishableKey ? loadStripe(env.stripe.publishableKey) : null;
-
-const cardElementOptions = {
-  style: {
-    base: {
-      fontSize: "16px",
-      color: "#0f172a",
-      "::placeholder": { color: "#94a3b8" },
-    },
-    invalid: { color: "#dc2626" },
-  },
-};
+type Step = "presentation" | "form" | "pay";
 
 // Formatea el teléfono como +xx (xx) xxxx-xxxxxx a medida que el usuario escribe.
 function formatPhoneNumber(value: string) {
@@ -174,7 +159,6 @@ function PayStep({
   submitting,
   setSubmitting,
   downsellProduct,
-  onSuccess,
 }: {
   product: Product;
   extraProducts: Product[];
@@ -187,18 +171,13 @@ function PayStep({
   submitting: boolean;
   setSubmitting: (value: boolean) => void;
   downsellProduct: Product | null;
-  onSuccess: (totalCents: number, currency: string) => void;
 }) {
-  const stripe = useStripe();
-  const elements = useElements();
   const [showDownsell, setShowDownsell] = useState(false);
   const [downsellResolved, setDownsellResolved] = useState(false);
 
+  // Cria la orden y redirige al Checkout hospedado por la propia Stripe: los
+  // datos de pago nunca pasan por nuestro servidor.
   async function handlePay(extraSlugsOverride?: string[]) {
-    if (!stripe || !elements) return;
-    const cardElement = elements.getElement(CardElement);
-    if (!cardElement) return;
-
     setError(null);
     setSubmitting(true);
     try {
@@ -215,26 +194,11 @@ function PayStep({
         }),
       });
       const data = await response.json();
-      if (!response.ok || !data.clientSecret) throw new Error("No se pudo procesar el pago. Intenta de nuevo.");
+      if (!response.ok || !data.checkoutUrl) throw new Error("No se pudo procesar el pago. Intenta de nuevo.");
 
-      const result = await stripe.confirmCardPayment(data.clientSecret, {
-        payment_method: {
-          card: cardElement,
-          billing_details: { name: form.fullName, email: form.email },
-        },
-      });
-
-      if (result.error) {
-        throw new Error(result.error.message ?? "No se pudo procesar el pago. Intenta de nuevo.");
-      }
-      if (result.paymentIntent?.status !== "succeeded") {
-        throw new Error("No se pudo procesar el pago. Intenta de nuevo.");
-      }
-
-      onSuccess(data.totalCents, data.currency);
+      window.location.href = data.checkoutUrl;
     } catch (payError) {
       setError(payError instanceof Error ? payError.message : "No se pudo procesar el pago. Intenta de nuevo.");
-    } finally {
       setSubmitting(false);
     }
   }
@@ -296,25 +260,17 @@ function PayStep({
           <span className="text-2xl font-extrabold text-brand-900">{formatPrice(subtotalCents, product.currency)}</span>
         </div>
 
-        <div className="mt-6">
-          <label className="mb-1.5 block text-sm font-medium text-brand-900">Datos de tu tarjeta</label>
-          <div className="rounded-lg border border-slate-300 bg-white px-3 py-3">
-            <CardElement options={cardElementOptions} />
-          </div>
-        </div>
-
         {error ? <p className="mt-3 text-sm text-red-600">{error}</p> : null}
 
         <div className="mt-6 flex justify-center">
-          <Button size="lg" className="w-64" onClick={handlePayButtonClick} disabled={submitting || !stripe}>
-            {submitting ? "Procesando..." : "Pagar"}
+          <Button size="lg" className="w-64" onClick={handlePayButtonClick} disabled={submitting}>
+            {submitting ? "Redirigiendo..." : "Pagar"}
           </Button>
         </div>
         <div className="mt-4 flex items-center justify-center gap-1.5 text-xs text-slate-400">
           <ShieldCheck className="h-3.5 w-3.5 text-brand-500" strokeWidth={2} />
-          <span>Pago 100% seguro y encriptado</span>
+          <span>Serás redirigido a Stripe para pagar de forma 100% segura</span>
         </div>
-        <p className="mt-2 text-center text-xs text-slate-400">Pago procesado por Stripe.</p>
       </Card>
 
       {showDownsell && downsellProduct ? (
@@ -340,7 +296,6 @@ export function CheckoutExperience({
   const [selectedExtraSlugs, setSelectedExtraSlugs] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [orderTotalCents, setOrderTotalCents] = useState<number | null>(null);
   const [showUpsell, setShowUpsell] = useState(false);
   const [upsellResolved, setUpsellResolved] = useState(false);
 
@@ -443,16 +398,6 @@ export function CheckoutExperience({
     }
   }
 
-  function handlePaySuccess(totalCents: number, currency: string) {
-    setOrderTotalCents(totalCents);
-    trackEvent("Purchase", {
-      email: form.email,
-      phone: form.phone,
-      customData: { content_name: product.name, value: totalCents / 100, currency },
-    });
-    setStep("success");
-  }
-
   return (
     <main className="min-h-screen bg-brand-50 py-10">
       <Container className="max-w-2xl">
@@ -476,7 +421,7 @@ export function CheckoutExperience({
                   <img
                     src={product.image_path}
                     alt={product.name}
-                    className="h-[32rem] w-full rounded-xl object-cover"
+                    className="aspect-[3/2] w-full rounded-xl object-cover"
                   />
                 </div>
               ) : null}
@@ -547,54 +492,25 @@ export function CheckoutExperience({
           </Card>
         ) : null}
 
-        {step === "pay" && stripePromise ? (
-          <Elements stripe={stripePromise}>
-            <PayStep
-              product={product}
-              extraProducts={acceptedExtraProducts}
-              setSelectedExtraSlugs={setSelectedExtraSlugs}
-              subtotalCents={subtotalCents}
-              leadId={leadId}
-              form={form}
-              error={error}
-              setError={setError}
-              submitting={submitting}
-              setSubmitting={setSubmitting}
-              downsellProduct={downsellProduct}
-              onSuccess={handlePaySuccess}
-            />
-          </Elements>
+        {step === "pay" ? (
+          <PayStep
+            product={product}
+            extraProducts={acceptedExtraProducts}
+            setSelectedExtraSlugs={setSelectedExtraSlugs}
+            subtotalCents={subtotalCents}
+            leadId={leadId}
+            form={form}
+            error={error}
+            setError={setError}
+            submitting={submitting}
+            setSubmitting={setSubmitting}
+            downsellProduct={downsellProduct}
+          />
         ) : null}
 
-        {step === "pay" && !stripePromise ? (
-          <Card className="mt-6" hoverable={false}>
-            <p className="text-sm text-red-600">
-              El pago no está disponible en este momento. Por favor, contáctanos.
-            </p>
-          </Card>
-        ) : null}
-
-        {step === "success" ? (
-          <Card className="mt-6 text-center" hoverable={false}>
-            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-brand-100 text-brand-600">
-              <CheckIcon className="h-8 w-8" />
-            </div>
-            <h1 className="mt-4 text-xl font-bold text-brand-900">¡Pago exitoso!</h1>
-            <p className="mt-2 text-sm text-slate-600">
-              Total pagado: {orderTotalCents !== null ? formatPrice(orderTotalCents, product.currency) : ""}
-            </p>
-            <p className="mt-1 text-xs text-slate-500">Revisa tu correo: te enviamos el acceso a tu programa.</p>
-            <Link href="/" className="mt-6 inline-block text-sm font-semibold text-brand-600 hover:text-brand-800">
-              Volver al inicio
-            </Link>
-          </Card>
-        ) : null}
-
-        {step !== "success" ? (
-          <div className="mt-6">
-            <Stepper labels={stepLabels} current={currentStepNumber} />
-          </div>
-        ) : null}
+        <div className="mt-6">
+          <Stepper labels={stepLabels} current={currentStepNumber} />
+        </div>
       </Container>
 
       {showUpsell && upsellProduct ? (

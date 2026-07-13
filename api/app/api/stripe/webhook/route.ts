@@ -23,24 +23,24 @@ export async function POST(request: Request) {
 
   const admin = createAdminClient();
 
-  // A order só é marcada como "paid" aqui, nunca a partir da resposta do
+  // A order só é marcada como "paid" aqui, nunca a partir do redirect do
   // client: é o webhook que confirma que a Stripe de fato recebeu o
-  // pagamento. Essa mudança de status dispara o trigger pg_net que avisa o
-  // n8n para enviar o PDF por email.
-  if (event.type === "payment_intent.succeeded") {
-    const paymentIntent = event.data.object as Stripe.PaymentIntent;
-    await admin
-      .from("orders_saludperfecta")
-      .update({ status: "paid" })
-      .eq("stripe_payment_intent_id", paymentIntent.id);
+  // pagamento no Checkout hospedado. Essa mudança de status dispara o
+  // trigger pg_net que avisa o n8n para enviar o PDF por email.
+  if (event.type === "checkout.session.completed") {
+    const session = event.data.object as Stripe.Checkout.Session;
+    const orderId = session.metadata?.orderId;
+    if (orderId) {
+      await admin.from("orders_saludperfecta").update({ status: "paid" }).eq("id", orderId);
+    }
   }
 
-  if (event.type === "payment_intent.payment_failed") {
-    const paymentIntent = event.data.object as Stripe.PaymentIntent;
-    await admin
-      .from("orders_saludperfecta")
-      .update({ status: "failed" })
-      .eq("stripe_payment_intent_id", paymentIntent.id);
+  if (event.type === "checkout.session.expired") {
+    const session = event.data.object as Stripe.Checkout.Session;
+    const orderId = session.metadata?.orderId;
+    if (orderId) {
+      await admin.from("orders_saludperfecta").update({ status: "failed" }).eq("id", orderId);
+    }
   }
 
   return NextResponse.json({ received: true });

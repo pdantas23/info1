@@ -1,0 +1,6 @@
+{
+  "folders": [
+    { "name": "frontend", "path": "frontend" },
+    { "name": "api", "path": "api" }
+  ]
+}

@@ -3,6 +3,10 @@ import { getStripe } from "@/lib/stripe";
 import { corsJson, corsPreflight } from "@/lib/cors";
 import type { OrderItem } from "@/types";
 
+// URL do frontend (domínio separado): pra onde a Stripe redireciona o
+// cliente de volta depois de pagar (ou cancelar) no Checkout hospedado.
+const frontendUrl = process.env.FRONTEND_URL ?? "http://localhost:3000";
+
 export async function OPTIONS(request: Request) {
   return corsPreflight(request);
 }
@@ -76,23 +80,38 @@ export async function POST(request: Request) {
     return corsJson(request, { error: orderError.message }, { status: 400 });
   }
 
+  // Checkout hospedado pela própria Stripe: o cliente é redirecionado pra lá
+  // pra digitar o cartão, e volta pro site só depois de pagar (ou cancelar).
+  // Nenhum dado de pagamento passa pelo nosso servidor.
   const stripe = getStripe();
-  const paymentIntent = await stripe.paymentIntents.create({
-    amount: order.total_cents,
-    currency: order.currency.toLowerCase(),
+  const session = await stripe.checkout.sessions.create({
+    mode: "payment",
     payment_method_types: ["card"],
+    customer_email: email,
+    line_items: items.map((item) => ({
+      price_data: {
+        currency: order.currency.toLowerCase(),
+        product_data: { name: item.name },
+        unit_amount: item.price_cents,
+      },
+      quantity: 1,
+    })),
+    success_url: `${frontendUrl}/checkout/${product.slug}/success?amount=${order.total_cents}&currency=${order.currency}`,
+    cancel_url: `${frontendUrl}/checkout/${product.slug}`,
     metadata: { orderId: String(order.id) },
   });
 
   await admin
     .from("orders_saludperfecta")
-    .update({ stripe_payment_intent_id: paymentIntent.id })
+    .update({ stripe_payment_intent_id: session.id })
     .eq("id", order.id);
+
+  if (!session.url) {
+    return corsJson(request, { error: "No se pudo iniciar el pago. Intenta de nuevo." }, { status: 502 });
+  }
 
   return corsJson(request, {
     orderId: order.id,
-    clientSecret: paymentIntent.client_secret,
-    totalCents: order.total_cents,
-    currency: order.currency,
+    checkoutUrl: session.url,
   });
 }
