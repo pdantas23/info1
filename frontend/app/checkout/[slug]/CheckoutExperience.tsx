@@ -327,7 +327,7 @@ export function CheckoutExperience({
 
   const [form, setForm] = useState({ fullName: "", email: "", phone: "" });
   const [fieldErrors, setFieldErrors] = useState<{ fullName?: string; email?: string; phone?: string }>({});
-  const lastAutoPhoneRef = useRef("");
+  const hasEditedPhoneRef = useRef(false);
   const countryOptions = useMemo(() => getCountryOptions(), []);
 
   const stepLabels = ["Producto", "Tus datos", "Pago"];
@@ -352,25 +352,19 @@ export function CheckoutExperience({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Pré-preenche o telefone com o DDI do país (detectado por IP, ou o
-  // escolhido no seletor manual) — só sobrescreve enquanto o campo seguir
-  // vazio ou com exatamente o DDI preenchido automaticamente antes; se o
-  // visitante já digitou seu número, não mexe mais nele.
+  // Precompleta el teléfono con el DDI del país (detectado por IP, o el
+  // elegido en el selector manual) — deja de tocarlo en cuanto el visitante
+  // escriba algo (hasEditedPhoneRef), en vez de intentar adivinar por
+  // comparación de strings si el valor actual es "solo el prefijo".
   useEffect(() => {
+    if (hasEditedPhoneRef.current) return;
     let prefix: string;
     try {
       prefix = `+${getCountryCallingCode(localization.country as CountryCode)} `;
     } catch {
       return;
     }
-    // A função passada pra setForm precisa ser pura (o React Strict Mode a
-    // executa 2x em dev pra checar isso) — por isso a ref só é atualizada
-    // aqui fora, depois do setForm, nunca dentro do updater.
-    setForm((current) => {
-      if (current.phone !== "" && current.phone !== lastAutoPhoneRef.current) return current;
-      return { ...current, phone: prefix };
-    });
-    lastAutoPhoneRef.current = prefix;
+    setForm((current) => ({ ...current, phone: prefix }));
   }, [localization.country]);
 
   // El pop-up del upsell aparece un momento después de llegar al paso de
@@ -568,10 +562,14 @@ export function CheckoutExperience({
               <Input
                 id="phone"
                 type="tel"
+                autoComplete="off"
                 label="Teléfono (WhatsApp)"
                 placeholder="Ej: +52 55 1234 5678"
                 value={form.phone}
-                onChange={(e) => setForm({ ...form, phone: new AsYouType(localization.country as CountryCode).input(e.target.value) })}
+                onChange={(e) => {
+                  hasEditedPhoneRef.current = true;
+                  setForm({ ...form, phone: new AsYouType(localization.country as CountryCode).input(e.target.value) });
+                }}
                 error={fieldErrors.phone}
               />
               {error ? <p className="text-sm text-red-600">{error}</p> : null}

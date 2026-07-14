@@ -24,6 +24,7 @@ const playfairDisplay = Playfair_Display({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "https://saludperfectahoy.com"),
   title: "Movilidad Total — Programa #1 en movilidad para adultos",
   description:
     "Recupera tu movilidad y vuelve a disfrutar de una vida sin dolor con un programa práctico diseñado para adultos.",
