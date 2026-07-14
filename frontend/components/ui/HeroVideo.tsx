@@ -16,8 +16,6 @@ export function HeroVideo({
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
-    // Forzado sin fallback a silenciado — solo para probar si el navegador
-    // deja reproducir con sonido automáticamente.
     video.muted = false;
     video.play().catch((error) => {
       console.log("Autoplay con sonido bloqueado por el navegador.", error);
@@ -41,6 +39,7 @@ export function HeroVideo({
         className="h-full w-full cursor-pointer bg-brand-900 object-cover"
         src={src}
         poster={poster}
+        autoPlay
         playsInline
         preload="auto"
         onPlay={() => setIsPlaying(true)}
