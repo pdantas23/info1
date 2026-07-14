@@ -16,13 +16,8 @@ export function HeroVideo({
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
-    // Intenta reproducir con sonido; si el navegador lo bloquea (política de
-    // autoplay), recién ahí caemos a silenciado para garantizar que arranque.
     video.muted = false;
-    video.play().catch(() => {
-      video.muted = true;
-      video.play().catch(() => {});
-    });
+    video.play().catch(() => {});
   }, []);
 
   const togglePlayback = () => {
