@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Pause, Play } from "lucide-react";
 
 export function HeroVideo({
@@ -12,6 +12,17 @@ export function HeroVideo({
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isPlaying, setIsPlaying] = useState(true);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    // Intenta reproducir con sonido; si el navegador lo bloquea (política de
+    // autoplay), recién ahí caemos a silenciado para garantizar que arranque.
+    video.play().catch(() => {
+      video.muted = true;
+      video.play().catch(() => {});
+    });
+  }, []);
 
   const togglePlayback = () => {
     const video = videoRef.current;
@@ -30,8 +41,6 @@ export function HeroVideo({
         className="h-full w-full cursor-pointer bg-brand-900 object-cover"
         src={src}
         poster={poster}
-        autoPlay
-        muted
         playsInline
         preload="auto"
         onPlay={() => setIsPlaying(true)}
