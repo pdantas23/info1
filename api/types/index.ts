@@ -55,6 +55,11 @@ export type Order = {
   discount_cents: number;
   total_cents: number;
   currency: string;
+  // Equivalente em USD do total cobrado (para relatórios agregados: moedas
+  // diferentes entre pedidos não podem ser somadas via `total_cents`).
+  total_usd_cents: number;
+  fx_rate: number | null;
+  country: string | null;
   status: OrderStatus;
   stripe_payment_intent_id: string | null;
   created_at: string;

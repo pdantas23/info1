@@ -1,4 +1,5 @@
 import type { InputHTMLAttributes } from "react";
+import { ChevronDown } from "lucide-react";
 
 export function Input({
   label,
@@ -33,13 +34,19 @@ export function Select({
   return (
     <label htmlFor={id} className="block text-left">
       <span className="mb-1 block text-sm font-semibold text-brand-900">{label}</span>
-      <select
-        id={id}
-        className={`w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-base text-slate-900 outline-none transition-colors focus:border-brand-500 focus:ring-2 focus:ring-brand-200 ${className}`}
-        {...props}
-      >
-        {children}
-      </select>
+      <div className="relative">
+        {/* `appearance-none` tira o estilo nativo do <select> (que renderiza
+            com uma altura diferente de um <input> mesmo com o mesmo padding)
+            — o ícone abaixo substitui a seta nativa removida. */}
+        <select
+          id={id}
+          className={`w-full appearance-none rounded-xl border border-slate-300 bg-white px-4 py-3 pr-10 text-base text-slate-900 outline-none transition-colors focus:border-brand-500 focus:ring-2 focus:ring-brand-200 ${className}`}
+          {...props}
+        >
+          {children}
+        </select>
+        <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+      </div>
     </label>
   );
 }

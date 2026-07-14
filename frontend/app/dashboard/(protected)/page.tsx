@@ -6,7 +6,7 @@ import { PeriodFilter } from "./PeriodFilter";
 import { DailySalesChart } from "./DailySalesChart";
 
 type SearchParams = { period?: string; from?: string; to?: string };
-type OrderRow = { created_at: string; total_cents: number; status: string; currency: string };
+type OrderRow = { created_at: string; total_usd_cents: number; status: string };
 
 const PERIOD_DAYS: Record<string, number> = { hoje: 0, "7d": 6, "30d": 29, "90d": 89 };
 
@@ -36,7 +36,7 @@ function buildDailySeries(orders: OrderRow[], start: Date, end: Date) {
   for (const order of orders) {
     if (order.status !== "paid" && order.status !== "mock_paid") continue;
     const day = order.created_at.slice(0, 10);
-    revenueByDay.set(day, (revenueByDay.get(day) ?? 0) + order.total_cents);
+    revenueByDay.set(day, (revenueByDay.get(day) ?? 0) + order.total_usd_cents);
   }
 
   const days: { date: string; revenueCents: number }[] = [];
@@ -58,7 +58,7 @@ export default async function DashboardOverviewPage({ searchParams }: { searchPa
   const [{ data: orders }, { count: leadsCount }] = await Promise.all([
     admin
       .from("orders_saludperfecta")
-      .select("created_at, total_cents, status, currency")
+      .select("created_at, total_usd_cents, status")
       .gte("created_at", start.toISOString())
       .lte("created_at", end.toISOString())
       .order("created_at", { ascending: true })
@@ -72,9 +72,11 @@ export default async function DashboardOverviewPage({ searchParams }: { searchPa
 
   const allOrders = orders ?? [];
   const paidOrders = allOrders.filter((order) => order.status === "paid" || order.status === "mock_paid");
-  const revenueCents = paidOrders.reduce((sum, order) => sum + order.total_cents, 0);
+  // Pedidos podem ter sido cobrados em moedas diferentes — os agregados só
+  // podem ser somados de forma consistente em USD.
+  const revenueCents = paidOrders.reduce((sum, order) => sum + order.total_usd_cents, 0);
   const salesCount = paidOrders.length;
-  const currency = paidOrders[0]?.currency ?? "USD";
+  const currency = "USD";
   const conversionRate = leadsCount ? Math.round((salesCount / leadsCount) * 1000) / 10 : 0;
   const avgTicketCents = salesCount ? Math.round(revenueCents / salesCount) : 0;
 

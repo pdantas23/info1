@@ -45,3 +45,6 @@ frontend/raw-media
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# supabase cli
+supabase/.temp/

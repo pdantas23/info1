@@ -1,14 +1,6 @@
-import geoip from "geoip-lite";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { corsJson, corsPreflight } from "@/lib/cors";
-
-function resolveClientIp(request: Request) {
-  const forwardedFor = request.headers.get("x-forwarded-for");
-  if (forwardedFor) {
-    return forwardedFor.split(",")[0]?.trim() || null;
-  }
-  return request.headers.get("x-real-ip");
-}
+import { detectCountry } from "@/lib/currency/geo";
 
 export async function OPTIONS(request: Request) {
   return corsPreflight(request);
@@ -37,12 +29,7 @@ export async function POST(request: Request) {
 
   // Se o cliente não informar o país explicitamente, tentamos detectar pelo
   // IP (via geoip-lite, sem chamada externa) usando o IP repassado pelo proxy.
-  let resolvedCountry: string | null = country ?? null;
-  if (!resolvedCountry) {
-    const clientIp = resolveClientIp(request);
-    const geo = clientIp ? geoip.lookup(clientIp) : null;
-    resolvedCountry = geo?.country ?? null;
-  }
+  const resolvedCountry: string = country || detectCountry(request.headers);
 
   const admin = createAdminClient();
   const { data, error } = await admin

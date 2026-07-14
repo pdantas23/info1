@@ -41,7 +41,9 @@ export async function saveProduct(formData: FormData): Promise<{ ok: boolean; me
     compare_at_price_cents: formData.get("compareAtPrice")
       ? Math.round(Number(formData.get("compareAtPrice")) * 100)
       : null,
-    currency: String(formData.get("currency") ?? "USD"),
+    // Preço no catálogo é sempre a base em USD — a conversão pra moeda do
+    // visitante acontece na exibição/cobrança, não no cadastro do produto.
+    currency: "USD",
     image_path: String(formData.get("imagePath") ?? "") || null,
     pdf_path: String(formData.get("pdfPath") ?? "") || null,
     // O produto principal não tem papel de oferta; os demais, sim.

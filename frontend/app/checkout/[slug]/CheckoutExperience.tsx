@@ -1,32 +1,54 @@
 "use client";
 
-import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from "react";
+import { useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from "react";
 import Link from "next/link";
 import { Container } from "@/components/ui/Container";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
-import { Input } from "@/components/ui/Input";
+import { Input, Select } from "@/components/ui/Input";
 import { Modal } from "@/components/ui/Modal";
 import { ShieldCheck } from "lucide-react";
+import { AsYouType, getCountryCallingCode, isValidPhoneNumber } from "libphonenumber-js/min";
+import type { CountryCode } from "libphonenumber-js";
 import { formatPrice } from "@/lib/format";
 import { trackEvent } from "@/lib/meta/pixel";
 import { env } from "@/lib/env";
+import { getCountryOptions } from "@/lib/currency/countryList";
 import type { Product } from "@/types";
 
 type Step = "presentation" | "form" | "pay";
 
-// Formatea el teléfono como +xx (xx) xxxx-xxxxxx a medida que el usuario escribe.
-function formatPhoneNumber(value: string) {
-  const digits = value.replace(/\D/g, "").slice(0, 14);
-  let formatted = "";
-  for (let i = 0; i < digits.length; i++) {
-    if (i === 0) formatted += "+";
-    if (i === 2) formatted += " (";
-    if (i === 4) formatted += ") ";
-    if (i === 8) formatted += "-";
-    formatted += digits[i];
+export type LocalizedPrice = { priceCents: number; compareAtPriceCents: number | null };
+export type Localization = {
+  country: string;
+  currency: string;
+  rate: number;
+  prices: Record<string, LocalizedPrice>;
+};
+
+// Sobrepõe o preço/moeda em USD do catálogo pelos valores já convertidos pro
+// país do visitante — mantém o resto do produto (nome, imagem, slug...)
+// intacto, então o resto da UI usa esse objeto exatamente como usaria o
+// produto original.
+function localizeProduct(product: Product, localization: Localization): Product {
+  const localized = localization.prices[product.slug];
+  if (!localized) return product;
+  return {
+    ...product,
+    price_cents: localized.priceCents,
+    compare_at_price_cents: localized.compareAtPriceCents,
+    currency: localization.currency,
+  };
+}
+
+function isPhoneEffectivelyEmpty(phone: string, country: CountryCode) {
+  const digits = phone.replace(/\D/g, "");
+  if (!digits) return true;
+  try {
+    return digits === getCountryCallingCode(country);
+  } catch {
+    return false;
   }
-  return formatted;
 }
 
 function CheckIcon({ className = "" }: { className?: string }) {
@@ -74,12 +96,10 @@ function Stepper({ labels, current }: { labels: string[]; current: number }) {
 
 function ProductOffer({
   offerProduct,
-  currency,
   onAccept,
   onDecline,
 }: {
   offerProduct: Product;
-  currency: string;
   onAccept: () => void;
   onDecline: () => void;
 }) {
@@ -96,10 +116,10 @@ function ProductOffer({
           <h2 className="text-xl font-bold text-brand-900">{offerProduct.name}</h2>
           {offerProduct.description ? <p className="mt-2 text-sm text-slate-600">{offerProduct.description}</p> : null}
           <div className="mt-4 flex items-center gap-3">
-            <span className="text-2xl font-extrabold text-brand-900">{formatPrice(offerProduct.price_cents, currency)}</span>
+            <span className="text-2xl font-extrabold text-brand-900">{formatPrice(offerProduct.price_cents, offerProduct.currency)}</span>
             {offerProduct.compare_at_price_cents ? (
               <span className="text-base text-red-600 line-through">
-                {formatPrice(offerProduct.compare_at_price_cents, currency)}
+                {formatPrice(offerProduct.compare_at_price_cents, offerProduct.currency)}
               </span>
             ) : null}
           </div>
@@ -154,6 +174,7 @@ function PayStep({
   subtotalCents,
   leadId,
   form,
+  country,
   error,
   setError,
   submitting,
@@ -166,6 +187,7 @@ function PayStep({
   subtotalCents: number;
   leadId: string | null;
   form: { fullName: string; email: string; phone: string };
+  country: string;
   error: string | null;
   setError: (value: string | null) => void;
   submitting: boolean;
@@ -191,6 +213,7 @@ function PayStep({
           email: form.email,
           fullName: form.fullName,
           extraProductSlugs,
+          country,
         }),
       });
       const data = await response.json();
@@ -220,7 +243,7 @@ function PayStep({
     if (!downsellProduct) return;
 
     trackEvent("AddToCart", {
-      customData: { content_name: downsellProduct.name, value: downsellProduct.price_cents / 100, currency: product.currency },
+      customData: { content_name: downsellProduct.name, value: downsellProduct.price_cents / 100, currency: downsellProduct.currency },
     });
     setSelectedExtraSlugs((current) => (current.includes(downsellProduct.slug) ? current : [...current, downsellProduct.slug]));
     handlePay([...extraProducts.map((extra) => extra.slug), downsellProduct.slug]);
@@ -275,7 +298,7 @@ function PayStep({
 
       {showDownsell && downsellProduct ? (
         <Modal title="¡Espera! Oferta especial" onClose={declineDownsell} closeLabel="Cerrar" maxWidthClassName="max-w-xl">
-          <ProductOffer offerProduct={downsellProduct} currency={product.currency} onAccept={acceptDownsell} onDecline={declineDownsell} />
+          <ProductOffer offerProduct={downsellProduct} onAccept={acceptDownsell} onDecline={declineDownsell} />
         </Modal>
       ) : null}
     </>
@@ -286,10 +309,12 @@ export function CheckoutExperience({
   product,
   upsellProduct,
   downsellProduct,
+  localization: initialLocalization,
 }: {
   product: Product;
   upsellProduct: Product | null;
   downsellProduct: Product | null;
+  localization: Localization;
 }) {
   const [step, setStep] = useState<Step>("presentation");
   const [leadId, setLeadId] = useState<string | null>(null);
@@ -298,19 +323,55 @@ export function CheckoutExperience({
   const [error, setError] = useState<string | null>(null);
   const [showUpsell, setShowUpsell] = useState(false);
   const [upsellResolved, setUpsellResolved] = useState(false);
+  const [localization, setLocalization] = useState<Localization>(initialLocalization);
 
   const [form, setForm] = useState({ fullName: "", email: "", phone: "" });
   const [fieldErrors, setFieldErrors] = useState<{ fullName?: string; email?: string; phone?: string }>({});
+  const lastAutoPhoneRef = useRef("");
+  const countryOptions = useMemo(() => getCountryOptions(), []);
 
   const stepLabels = ["Producto", "Tus datos", "Pago"];
   const currentStepNumber = step === "presentation" ? 1 : step === "form" ? 2 : 3;
 
+  const localizedProduct = useMemo(() => localizeProduct(product, localization), [product, localization]);
+  const localizedUpsell = useMemo(() => (upsellProduct ? localizeProduct(upsellProduct, localization) : null), [upsellProduct, localization]);
+  const localizedDownsell = useMemo(
+    () => (downsellProduct ? localizeProduct(downsellProduct, localization) : null),
+    [downsellProduct, localization]
+  );
+
   useEffect(() => {
     trackEvent("InitiateCheckout", {
-      customData: { content_name: product.name, product_slug: product.slug, value: product.price_cents / 100, currency: product.currency },
+      customData: {
+        content_name: localizedProduct.name,
+        product_slug: localizedProduct.slug,
+        value: localizedProduct.price_cents / 100,
+        currency: localizedProduct.currency,
+      },
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Pré-preenche o telefone com o DDI do país (detectado por IP, ou o
+  // escolhido no seletor manual) — só sobrescreve enquanto o campo seguir
+  // vazio ou com exatamente o DDI preenchido automaticamente antes; se o
+  // visitante já digitou seu número, não mexe mais nele.
+  useEffect(() => {
+    let prefix: string;
+    try {
+      prefix = `+${getCountryCallingCode(localization.country as CountryCode)} `;
+    } catch {
+      return;
+    }
+    // A função passada pra setForm precisa ser pura (o React Strict Mode a
+    // executa 2x em dev pra checar isso) — por isso a ref só é atualizada
+    // aqui fora, depois do setForm, nunca dentro do updater.
+    setForm((current) => {
+      if (current.phone !== "" && current.phone !== lastAutoPhoneRef.current) return current;
+      return { ...current, phone: prefix };
+    });
+    lastAutoPhoneRef.current = prefix;
+  }, [localization.country]);
 
   // El pop-up del upsell aparece un momento después de llegar al paso de
   // pago (checkout), no apenas carga la página.
@@ -324,21 +385,37 @@ export function CheckoutExperience({
   // suman: ninguna reemplaza a otra.
   const acceptedExtraProducts = useMemo(() => {
     const list: Product[] = [];
-    if (upsellProduct && selectedExtraSlugs.includes(upsellProduct.slug)) list.push(upsellProduct);
-    if (downsellProduct && selectedExtraSlugs.includes(downsellProduct.slug)) list.push(downsellProduct);
+    if (localizedUpsell && selectedExtraSlugs.includes(localizedUpsell.slug)) list.push(localizedUpsell);
+    if (localizedDownsell && selectedExtraSlugs.includes(localizedDownsell.slug)) list.push(localizedDownsell);
     return list;
-  }, [upsellProduct, downsellProduct, selectedExtraSlugs]);
+  }, [localizedUpsell, localizedDownsell, selectedExtraSlugs]);
 
   const subtotalCents = useMemo(
-    () => product.price_cents + acceptedExtraProducts.reduce((sum, extra) => sum + extra.price_cents, 0),
-    [product.price_cents, acceptedExtraProducts]
+    () => localizedProduct.price_cents + acceptedExtraProducts.reduce((sum, extra) => sum + extra.price_cents, 0),
+    [localizedProduct.price_cents, acceptedExtraProducts]
   );
 
+  async function handleCountryChange(newCountry: string) {
+    const slugs = [product.slug, upsellProduct?.slug, downsellProduct?.slug].filter((slug): slug is string => Boolean(slug));
+    try {
+      const response = await fetch(`${env.apiUrl}/api/localize`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ country: newCountry, slugs }),
+      });
+      const data = await response.json();
+      if (!response.ok) return;
+      setLocalization({ country: data.country, currency: data.currency, rate: data.rate, prices: data.products });
+    } catch {
+      // Best-effort: se a troca manual falhar, mantém a localização anterior.
+    }
+  }
+
   function acceptUpsell() {
-    if (!upsellProduct) return;
+    if (!upsellProduct || !localizedUpsell) return;
     setSelectedExtraSlugs((current) => [...current, upsellProduct.slug]);
     trackEvent("AddToCart", {
-      customData: { content_name: upsellProduct.name, value: upsellProduct.price_cents / 100, currency: product.currency },
+      customData: { content_name: localizedUpsell.name, value: localizedUpsell.price_cents / 100, currency: localizedUpsell.currency },
     });
     setUpsellResolved(true);
     setShowUpsell(false);
@@ -359,7 +436,8 @@ export function CheckoutExperience({
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
       errors.email = "Ingresa un correo electrónico válido.";
     }
-    if (form.phone && form.phone.replace(/\D/g, "").length < 8) {
+    const phoneCountry = localization.country as CountryCode;
+    if (!isPhoneEffectivelyEmpty(form.phone, phoneCountry) && !isValidPhoneNumber(form.phone, phoneCountry)) {
       errors.phone = "Ingresa un número de teléfono válido.";
     }
     return errors;
@@ -378,7 +456,7 @@ export function CheckoutExperience({
       const response = await fetch(`${env.apiUrl}/api/leads`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ productSlug: product.slug, ...form }),
+        body: JSON.stringify({ productSlug: product.slug, ...form, country: localization.country }),
       });
       const data = await response.json();
       if (!response.ok) throw new Error("No se pudo guardar tus datos. Intenta de nuevo.");
@@ -387,7 +465,7 @@ export function CheckoutExperience({
       trackEvent("Lead", {
         email: form.email,
         phone: form.phone,
-        customData: { content_name: product.name, product_slug: product.slug },
+        customData: { content_name: localizedProduct.name, product_slug: localizedProduct.slug },
       });
 
       setStep("pay");
@@ -408,34 +486,38 @@ export function CheckoutExperience({
         {step !== "presentation" ? (
           <Card className="mt-6" hoverable={false}>
             <p className="text-sm font-semibold text-brand-500">Estás por adquirir</p>
-            <p className="text-lg font-bold text-brand-900">{product.name}</p>
+            <p className="text-lg font-bold text-brand-900">{localizedProduct.name}</p>
           </Card>
         ) : null}
 
         {step === "presentation" ? (
           <Card className="mt-6" hoverable={false}>
             <div className="flex flex-col gap-6 sm:flex-row">
-              {product.image_path ? (
+              {localizedProduct.image_path ? (
                 <div className="sm:w-96 sm:shrink-0">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
-                    src={product.image_path}
-                    alt={product.name}
+                    src={localizedProduct.image_path}
+                    alt={localizedProduct.name}
                     className="aspect-[3/2] w-full rounded-xl object-cover"
                   />
                 </div>
               ) : null}
               <div className="flex flex-1 flex-col">
                 <div>
-                  <h1 className="text-2xl font-bold text-brand-900">{product.name}</h1>
-                  {product.headline ? <p className="mt-2 text-lg font-semibold text-brand-700">{product.headline}</p> : null}
-                  {product.subheadline ? <p className="mt-1 text-slate-600">{product.subheadline}</p> : null}
-                  {product.description ? <p className="mt-4 text-sm leading-relaxed text-slate-600">{product.description}</p> : null}
+                  <h1 className="text-2xl font-bold text-brand-900">{localizedProduct.name}</h1>
+                  {localizedProduct.headline ? <p className="mt-2 text-lg font-semibold text-brand-700">{localizedProduct.headline}</p> : null}
+                  {localizedProduct.subheadline ? <p className="mt-1 text-slate-600">{localizedProduct.subheadline}</p> : null}
+                  {localizedProduct.description ? (
+                    <p className="mt-4 text-sm leading-relaxed text-slate-600">{localizedProduct.description}</p>
+                  ) : null}
                   <div className="mt-6 flex items-center gap-3">
-                    <span className="text-2xl font-extrabold text-brand-900">{formatPrice(product.price_cents, product.currency)}</span>
-                    {product.compare_at_price_cents ? (
+                    <span className="text-2xl font-extrabold text-brand-900">
+                      {formatPrice(localizedProduct.price_cents, localizedProduct.currency)}
+                    </span>
+                    {localizedProduct.compare_at_price_cents ? (
                       <span className="text-base text-red-600 line-through">
-                        {formatPrice(product.compare_at_price_cents, product.currency)}
+                        {formatPrice(localizedProduct.compare_at_price_cents, localizedProduct.currency)}
                       </span>
                     ) : null}
                   </div>
@@ -471,13 +553,25 @@ export function CheckoutExperience({
                 onChange={(e) => setForm({ ...form, email: e.target.value })}
                 error={fieldErrors.email}
               />
+              <Select
+                id="country"
+                label="País"
+                value={localization.country}
+                onChange={(e) => handleCountryChange(e.target.value)}
+              >
+                {countryOptions.map((option) => (
+                  <option key={option.code} value={option.code}>
+                    {option.label}
+                  </option>
+                ))}
+              </Select>
               <Input
                 id="phone"
                 type="tel"
                 label="Teléfono (WhatsApp)"
                 placeholder="Ej: +52 55 1234 5678"
                 value={form.phone}
-                onChange={(e) => setForm({ ...form, phone: formatPhoneNumber(e.target.value) })}
+                onChange={(e) => setForm({ ...form, phone: new AsYouType(localization.country as CountryCode).input(e.target.value) })}
                 error={fieldErrors.phone}
               />
               {error ? <p className="text-sm text-red-600">{error}</p> : null}
@@ -494,17 +588,18 @@ export function CheckoutExperience({
 
         {step === "pay" ? (
           <PayStep
-            product={product}
+            product={localizedProduct}
             extraProducts={acceptedExtraProducts}
             setSelectedExtraSlugs={setSelectedExtraSlugs}
             subtotalCents={subtotalCents}
             leadId={leadId}
             form={form}
+            country={localization.country}
             error={error}
             setError={setError}
             submitting={submitting}
             setSubmitting={setSubmitting}
-            downsellProduct={downsellProduct}
+            downsellProduct={localizedDownsell}
           />
         ) : null}
 
@@ -513,9 +608,9 @@ export function CheckoutExperience({
         </div>
       </Container>
 
-      {showUpsell && upsellProduct ? (
+      {showUpsell && localizedUpsell ? (
         <Modal title="¡Oferta especial!" onClose={declineUpsell} closeLabel="Cerrar" maxWidthClassName="max-w-xl">
-          <ProductOffer offerProduct={upsellProduct} currency={product.currency} onAccept={acceptUpsell} onDecline={declineUpsell} />
+          <ProductOffer offerProduct={localizedUpsell} onAccept={acceptUpsell} onDecline={declineUpsell} />
         </Modal>
       ) : null}
     </main>

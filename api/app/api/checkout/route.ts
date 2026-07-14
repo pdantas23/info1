@@ -1,6 +1,10 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getStripe } from "@/lib/stripe";
 import { corsJson, corsPreflight } from "@/lib/cors";
+import { detectCountry } from "@/lib/currency/geo";
+import { currencyForCountry } from "@/lib/currency/countryCurrency";
+import { getExchangeRate } from "@/lib/currency/rates";
+import { convertUsdCentsToLocal } from "@/lib/currency/convert";
 import type { OrderItem } from "@/types";
 
 // URL do frontend (domínio separado): pra onde a Stripe redireciona o
@@ -13,7 +17,7 @@ export async function OPTIONS(request: Request) {
 
 export async function POST(request: Request) {
   const body = await request.json();
-  const { productSlug, leadId, email, fullName, extraProductSlugs } = body ?? {};
+  const { productSlug, leadId, email, fullName, extraProductSlugs, country } = body ?? {};
 
   if (!productSlug || !email) {
     return corsJson(request, { error: "productSlug e email são obrigatórios" }, { status: 400 });
@@ -23,7 +27,7 @@ export async function POST(request: Request) {
 
   const { data: product, error: productError } = await admin
     .from("products_saludperfecta")
-    .select("slug, name, price_cents, currency, active")
+    .select("slug, name, price_cents, active")
     .eq("slug", productSlug)
     .single();
 
@@ -46,16 +50,32 @@ export async function POST(request: Request) {
   }
   const offerProducts = offerRows ?? [];
 
+  // O produto principal e cada oferta aceita (upsell e/ou downsell) se
+  // somam: nenhuma substitui a outra. Preços aqui ainda estão na base em
+  // USD do catálogo.
   const requestedExtraSlugs = new Set(Array.isArray(extraProductSlugs) ? extraProductSlugs : []);
-  const extraItems: OrderItem[] = offerProducts
+  const extraItemsUsd: OrderItem[] = offerProducts
     .filter((offer) => requestedExtraSlugs.has(offer.slug))
     .map((offer) => ({ slug: offer.slug, name: offer.name, price_cents: offer.price_cents }));
+  const itemsUsd: OrderItem[] = [{ slug: product.slug, name: product.name, price_cents: product.price_cents }, ...extraItemsUsd];
+  const subtotalUsdCents = itemsUsd.reduce((sum, item) => sum + item.price_cents, 0);
 
-  // O produto principal e cada oferta aceita (upsell e/ou downsell) se
-  // somam: nenhuma substitui a outra.
-  const items: OrderItem[] = [{ slug: product.slug, name: product.name, price_cents: product.price_cents }, ...extraItems];
-  const subtotalCents = items.reduce((sum, item) => sum + item.price_cents, 0);
-  const totalCents = subtotalCents;
+  // O país nunca é confiado como preço/valor vindo do client — só como
+  // "em que país esse visitante está" (explícito, do seletor manual, ou
+  // detectado por IP). O valor cobrado é sempre recalculado aqui a partir
+  // do preço em USD do banco.
+  const countryCode = (typeof country === "string" && country ? country : detectCountry(request.headers)).toUpperCase();
+  const currency = currencyForCountry(countryCode);
+  const rate = await getExchangeRate(admin, currency);
+
+  function localizeItems(targetCurrency: string, targetRate: number): OrderItem[] {
+    return itemsUsd.map((item) => ({ ...item, price_cents: convertUsdCentsToLocal(item.price_cents, targetCurrency, targetRate) }));
+  }
+
+  let chargeCurrency = currency;
+  let chargeRate = rate;
+  let items = localizeItems(chargeCurrency, chargeRate);
+  let totalCents = items.reduce((sum, item) => sum + item.price_cents, 0);
 
   // A order nasce "pending": só vira "paid" quando o webhook da Stripe
   // confirmar o pagamento (nunca a partir da resposta do client).
@@ -67,51 +87,87 @@ export async function POST(request: Request) {
       email,
       full_name: fullName ?? null,
       items,
-      subtotal_cents: subtotalCents,
+      subtotal_cents: totalCents,
       discount_cents: 0,
       total_cents: totalCents,
-      currency: product.currency,
+      total_usd_cents: subtotalUsdCents,
+      currency: chargeCurrency,
+      fx_rate: chargeRate,
+      country: countryCode,
       status: "pending",
     })
     .select("id, total_cents, currency")
     .single();
 
-  if (orderError) {
-    return corsJson(request, { error: orderError.message }, { status: 400 });
+  if (orderError || !order) {
+    return corsJson(request, { error: orderError?.message ?? "No se pudo crear el pedido." }, { status: 400 });
   }
 
   // Checkout hospedado pela própria Stripe: o cliente é redirecionado pra lá
   // pra digitar o cartão, e volta pro site só depois de pagar (ou cancelar).
   // Nenhum dado de pagamento passa pelo nosso servidor.
   const stripe = getStripe();
-  const session = await stripe.checkout.sessions.create({
-    mode: "payment",
-    payment_method_types: ["card"],
-    customer_email: email,
-    line_items: items.map((item) => ({
-      price_data: {
-        currency: order.currency.toLowerCase(),
-        product_data: { name: item.name },
-        unit_amount: item.price_cents,
-      },
-      quantity: 1,
-    })),
-    success_url: `${frontendUrl}/checkout/${product.slug}/success?amount=${order.total_cents}&currency=${order.currency}`,
-    cancel_url: `${frontendUrl}/checkout/${product.slug}`,
-    metadata: { orderId: String(order.id) },
-  });
+  const productSlugForUrls = product.slug;
+  const orderId = order.id;
+
+  async function createSession(sessionCurrency: string, sessionItems: OrderItem[]) {
+    return stripe.checkout.sessions.create({
+      mode: "payment",
+      payment_method_types: ["card"],
+      customer_email: email,
+      line_items: sessionItems.map((item) => ({
+        price_data: {
+          currency: sessionCurrency.toLowerCase(),
+          product_data: { name: item.name },
+          unit_amount: item.price_cents,
+        },
+        quantity: 1,
+      })),
+      success_url: `${frontendUrl}/checkout/${productSlugForUrls}/success?amount=${totalCents}&currency=${sessionCurrency}`,
+      cancel_url: `${frontendUrl}/checkout/${productSlugForUrls}`,
+      metadata: { orderId: String(orderId) },
+    });
+  }
+
+  let session;
+  try {
+    session = await createSession(chargeCurrency, items);
+  } catch {
+    // A Stripe pode não suportar a moeda local nesta conta — em vez de
+    // manter uma lista fixa (e potencialmente desatualizada) de moedas
+    // suportadas, cai pra USD e tenta de novo.
+    if (chargeCurrency === "USD") {
+      return corsJson(request, { error: "No se pudo procesar el pago. Intenta de nuevo." }, { status: 502 });
+    }
+
+    chargeCurrency = "USD";
+    chargeRate = 1;
+    items = itemsUsd;
+    totalCents = subtotalUsdCents;
+
+    await admin
+      .from("orders_saludperfecta")
+      .update({ items, subtotal_cents: totalCents, total_cents: totalCents, currency: chargeCurrency, fx_rate: chargeRate })
+      .eq("id", orderId);
+
+    try {
+      session = await createSession(chargeCurrency, items);
+    } catch {
+      return corsJson(request, { error: "No se pudo procesar el pago. Intenta de nuevo." }, { status: 502 });
+    }
+  }
 
   await admin
     .from("orders_saludperfecta")
     .update({ stripe_payment_intent_id: session.id })
-    .eq("id", order.id);
+    .eq("id", orderId);
 
   if (!session.url) {
     return corsJson(request, { error: "No se pudo iniciar el pago. Intenta de nuevo." }, { status: 502 });
   }
 
   return corsJson(request, {
-    orderId: order.id,
+    orderId,
     checkoutUrl: session.url,
   });
 }

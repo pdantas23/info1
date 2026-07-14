@@ -1,7 +1,20 @@
 import { notFound } from "next/navigation";
+import { headers } from "next/headers";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { detectCountry } from "@/lib/currency/geo";
+import { currencyForCountry } from "@/lib/currency/countryCurrency";
+import { getExchangeRate } from "@/lib/currency/rates";
+import { convertUsdCentsToLocal } from "@/lib/currency/convert";
 import type { Product } from "@/types";
-import { CheckoutExperience } from "./CheckoutExperience";
+import { CheckoutExperience, type LocalizedPrice } from "./CheckoutExperience";
+
+function localizePrice(product: Product, currency: string, rate: number): LocalizedPrice {
+  return {
+    priceCents: convertUsdCentsToLocal(product.price_cents, currency, rate),
+    compareAtPriceCents:
+      product.compare_at_price_cents !== null ? convertUsdCentsToLocal(product.compare_at_price_cents, currency, rate) : null,
+  };
+}
 
 export default async function CheckoutPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
@@ -28,5 +41,24 @@ export default async function CheckoutPage({ params }: { params: Promise<{ slug:
   const upsellProduct = (offerProducts ?? []).find((candidate) => candidate.offer_role === "upsell") ?? null;
   const downsellProduct = (offerProducts ?? []).find((candidate) => candidate.offer_role === "downsell") ?? null;
 
-  return <CheckoutExperience product={product} upsellProduct={upsellProduct} downsellProduct={downsellProduct} />;
+  // Preço no catálogo é sempre a base em USD; aqui já convertemos pro país
+  // detectado por IP (o seletor manual no client corrige via /api/localize
+  // se a detecção errar).
+  const requestHeaders = await headers();
+  const country = detectCountry(requestHeaders);
+  const currency = currencyForCountry(country);
+  const rate = await getExchangeRate(admin, currency);
+
+  const prices: Record<string, LocalizedPrice> = { [product.slug]: localizePrice(product, currency, rate) };
+  if (upsellProduct) prices[upsellProduct.slug] = localizePrice(upsellProduct, currency, rate);
+  if (downsellProduct) prices[downsellProduct.slug] = localizePrice(downsellProduct, currency, rate);
+
+  return (
+    <CheckoutExperience
+      product={product}
+      upsellProduct={upsellProduct}
+      downsellProduct={downsellProduct}
+      localization={{ country, currency, rate, prices }}
+    />
+  );
 }

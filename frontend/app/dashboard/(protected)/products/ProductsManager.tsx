@@ -17,18 +17,6 @@ function centsToInput(cents: number | null) {
   return cents ? (cents / 100).toString() : "";
 }
 
-const CURRENCIES = [
-  { value: "USD", label: "USD - Dólar americano" },
-  { value: "EUR", label: "EUR - Euro" },
-  { value: "BRL", label: "BRL - Real brasileiro" },
-  { value: "MXN", label: "MXN - Peso mexicano" },
-  { value: "ARS", label: "ARS - Peso argentino" },
-  { value: "CLP", label: "CLP - Peso chileno" },
-  { value: "COP", label: "COP - Peso colombiano" },
-  { value: "PEN", label: "PEN - Sol peruano" },
-  { value: "GBP", label: "GBP - Libra esterlina" },
-];
-
 function ImageField({ name, label, defaultValue }: { name: string; label: string; defaultValue?: string }) {
   const [value, setValue] = useState(defaultValue ?? "");
   const [isDragging, setIsDragging] = useState(false);
@@ -273,13 +261,9 @@ function ProductForm({ product, products, onDone }: { product?: Product; product
         defaultValue={centsToInput(product?.compare_at_price_cents ?? null)}
         className="h-12"
       />
-      <Select id="currency" name="currency" label="Moeda" defaultValue={product?.currency ?? "USD"} className="h-12">
-        {CURRENCIES.map((currency) => (
-          <option key={currency.value} value={currency.value}>
-            {currency.label}
-          </option>
-        ))}
-      </Select>
+      <p className="text-xs text-slate-500">
+        O preço é sempre cadastrado em USD (dólar) — cada visitante vê e paga o valor convertido pra moeda do seu país.
+      </p>
 
       {canBeMain ? (
         <label className="flex items-center gap-2 text-sm font-semibold text-brand-900">
