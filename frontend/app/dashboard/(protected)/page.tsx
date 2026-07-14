@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import { Card } from "@/components/ui/Card";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { formatPrice } from "@/lib/format";
+import { getVturbSessionStats } from "@/lib/vturb/analytics";
 import { PeriodFilter } from "./PeriodFilter";
 import { DailySalesChart } from "./DailySalesChart";
 
@@ -55,7 +56,7 @@ export default async function DashboardOverviewPage({ searchParams }: { searchPa
   const admin = createAdminClient();
   const { start, end, isAll } = resolveRange(params);
 
-  const [{ data: orders }, { count: leadsCount }] = await Promise.all([
+  const [{ data: orders }, { count: leadsCount }, vturbStats] = await Promise.all([
     admin
       .from("orders_saludperfecta")
       .select("created_at, total_usd_cents, status")
@@ -68,6 +69,7 @@ export default async function DashboardOverviewPage({ searchParams }: { searchPa
       .select("id", { count: "exact", head: true })
       .gte("created_at", start.toISOString())
       .lte("created_at", end.toISOString()),
+    getVturbSessionStats({ start, end }),
   ]);
 
   const allOrders = orders ?? [];
@@ -113,6 +115,29 @@ export default async function DashboardOverviewPage({ searchParams }: { searchPa
           </Card>
         ))}
       </div>
+
+      <h2 className="mt-10 text-xl font-bold text-brand-900">Vídeo (VTurb)</h2>
+      {vturbStats ? (
+        <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {[
+            { label: "Visualizações", value: vturbStats.total_viewed.toLocaleString("pt-BR") },
+            { label: "Taxa de reprodução", value: `${vturbStats.play_rate.toFixed(1)}%` },
+            { label: "Taxa de engajamento", value: `${vturbStats.engagement_rate.toFixed(1)}%` },
+            { label: "Vídeos concluídos", value: vturbStats.total_finished.toLocaleString("pt-BR") },
+          ].map((stat) => (
+            <Card key={stat.label} hoverable={false}>
+              <p className="text-sm font-semibold text-slate-500">{stat.label}</p>
+              <p className="mt-2 text-3xl font-extrabold text-brand-900">{stat.value}</p>
+            </Card>
+          ))}
+        </div>
+      ) : (
+        <Card className="mt-6" hoverable={false}>
+          <p className="text-sm text-slate-500">
+            Não foi possível carregar as métricas do VTurb para este período.
+          </p>
+        </Card>
+      )}
     </div>
   );
 }
