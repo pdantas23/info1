@@ -34,7 +34,6 @@ import { Card } from "@/components/ui/Card";
 import { Section, SectionHeading } from "@/components/ui/Section";
 import { Container } from "@/components/ui/Container";
 import { Accordion } from "@/components/ui/Accordion";
-import { StarRating } from "@/components/ui/StarRating";
 import { trackEvent } from "@/lib/meta/pixel";
 
 const PRODUCT_SLUG = "movilidad-total";
@@ -85,19 +84,9 @@ const COMPARISON = [
   { feature: "Suscripciones caras mensuales", ours: false },
 ];
 
-const TESTIMONIALS = [
-  { initials: "MG", name: "María G.", location: "Madrid, España", date: "12 Mar 2026", quote: "Me gustó mucho el programa. Las explicaciones son fáciles de seguir y pude incorporar los ejercicios a mi rutina diaria." },
-  { initials: "CR", name: "Carlos R.", location: "Bogotá, Colombia", date: "04 Abr 2026", quote: "Muy bien organizado y con acceso inmediato. Lo recomiendo totalmente." },
-  { initials: "AL", name: "Ana L.", location: "Ciudad de México", date: "21 Abr 2026", quote: "Excelente contenido. Muy práctico y fácil de entender." },
-  { initials: "JP", name: "Jorge P.", location: "Buenos Aires", date: "02 May 2026", quote: "Las rutinas cortas me permitieron ser constante por primera vez en años." },
-  { initials: "LM", name: "Lucía M.", location: "Sevilla, España", date: "15 May 2026", quote: "Al mes ya notaba menos rigidez al levantarme. Muy contenta con la compra." },
-  { initials: "RT", name: "Ricardo T.", location: "Lima, Perú", date: "28 May 2026", quote: "Muy claro y directo, sin relleno. Vas al grano y ves resultados." },
-  { initials: "IV", name: "Isabel V.", location: "Valencia, España", date: "06 Jun 2026", quote: "Perfecto para hacer en casa. No necesité comprar absolutamente nada." },
-  { initials: "FS", name: "Fernando S.", location: "Santiago de Chile", date: "18 Jun 2026", quote: "El acceso inmediato fue clave para mí, empecé el mismo día." },
-  { initials: "PN", name: "Patricia N.", location: "Quito, Ecuador", date: "22 Jun 2026", quote: "El contenido es muy claro, se entiende todo perfectamente." },
-  { initials: "MA", name: "Miguel Á.", location: "Barcelona", date: "01 Jul 2026", quote: "Volví a agacharme sin molestias. Recomendado 100%." },
-  { initials: "SD", name: "Sofía D.", location: "Montevideo", date: "05 Jul 2026", quote: "Lo mejor: el ritmo. Pude avanzar sin sentirme presionada." },
-  { initials: "AB", name: "Alejandro B.", location: "Guadalajara", date: "09 Jul 2026", quote: "Práctico, ordenado y con resultados reales. Súper contento." },
+const VIDEO_TESTIMONIALS = [
+  { file: "relato1", name: "Verónica M.", location: "Guadalajara, México" },
+  { file: "relato2", name: "Daniela F.", location: "Medellín, Colombia" },
 ];
 
 const GUARANTEES = [
@@ -204,7 +193,7 @@ export default function LandingPage() {
           aria-hidden="true"
         />
 
-        <div className="grid grid-cols-1 items-center gap-10 lg:grid-cols-2 lg:gap-16">
+        <div className="mx-auto flex max-w-3xl flex-col items-center gap-10">
           <div className="animate-fade-up text-center">
             <h1 className="font-heading text-4xl font-extrabold leading-[1.1] tracking-tight text-brand-900 sm:text-5xl">
               Recupera tu{" "}
@@ -217,25 +206,6 @@ export default function LandingPage() {
               Descubre un programa práctico diseñado para ayudarte a mejorar tu movilidad, reducir las molestias
               articulares y recuperar la confianza para realizar tus actividades diarias.
             </p>
-
-            <div className="mt-8 flex justify-center">
-              <LinkButton href={CHECKOUT_HREF} size="lg">
-                ¡Quiero comenzar ahora!
-              </LinkButton>
-            </div>
-
-            <div className="mt-6 flex items-center justify-center gap-3">
-              <div className="flex -space-x-3">
-                {["/fotos/avatar-1.jpg", "/fotos/avatar-2.jpg", "/fotos/avatar-3.jpg"].map((src) => (
-                  <span key={src} className="relative h-9 w-9 overflow-hidden rounded-full border-2 border-background">
-                    <Image src={src} alt="" fill sizes="36px" className="object-cover" />
-                  </span>
-                ))}
-              </div>
-              <p className="text-sm text-slate-600">
-                <span className="font-bold text-brand-900">+10.000</span> personas activas
-              </p>
-            </div>
           </div>
 
           <div className="relative mx-auto w-full animate-fade-up [animation-delay:150ms]">
@@ -253,15 +223,24 @@ export default function LandingPage() {
                 preload="metadata"
               />
             </div>
+          </div>
 
-            <div className="absolute inset-x-4 bottom-4 flex items-center gap-3 rounded-2xl bg-white p-4 shadow-xl sm:inset-x-6 sm:bottom-6">
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-100">
-                <CheckIcon className="h-5 w-5 text-brand-600" />
-              </span>
-              <div>
-                <p className="font-bold text-brand-900">Resultados desde la primera semana</p>
-                <p className="text-sm text-slate-500">Rutinas de 10 a 15 minutos al día</p>
+          <div className="flex flex-col items-center gap-6">
+            <LinkButton href={CHECKOUT_HREF} size="lg">
+              ¡Quiero comenzar ahora!
+            </LinkButton>
+
+            <div className="flex items-center justify-center gap-3">
+              <div className="flex -space-x-3">
+                {["/fotos/avatar-1.jpg", "/fotos/avatar-2.jpg", "/fotos/avatar-3.jpg"].map((src) => (
+                  <span key={src} className="relative h-9 w-9 overflow-hidden rounded-full border-2 border-background">
+                    <Image src={src} alt="" fill sizes="36px" className="object-cover" />
+                  </span>
+                ))}
               </div>
+              <p className="text-sm text-slate-600">
+                <span className="font-bold text-brand-900">+10.000</span> personas activas
+              </p>
             </div>
           </div>
         </div>
@@ -352,6 +331,15 @@ export default function LandingPage() {
               sizes="(min-width: 1024px) 50vw, 100vw"
               className="object-cover"
             />
+            <div className="absolute inset-x-4 bottom-4 flex items-center gap-3 rounded-2xl bg-white p-4 shadow-xl sm:inset-x-6 sm:bottom-6">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-100">
+                <CheckIcon className="h-5 w-5 text-brand-600" />
+              </span>
+              <div>
+                <p className="font-bold text-brand-900">Resultados desde la primera semana</p>
+                <p className="text-sm text-slate-500">Rutinas de 10 a 15 minutos al día</p>
+              </div>
+            </div>
           </div>
         </div>
       </Section>
@@ -401,29 +389,24 @@ export default function LandingPage() {
       {/* Opiniones */}
       <Section className="overflow-hidden">
         <SectionHeading eyebrow="Opiniones" title="Lo que dicen quienes ya empezaron" />
-        <p className="mx-auto mt-2 max-w-xl text-center text-xs text-slate-400">
-          Reseñas de compradores del programa. Contenido de ejemplo — reemplazar por testimonios reales antes de publicar.
-        </p>
-        <div className="group relative mt-10 flex overflow-hidden">
-          <div className="flex w-max animate-marquee gap-5 group-hover:[animation-play-state:paused]">
-            {[...TESTIMONIALS, ...TESTIMONIALS].map((testimonial, index) => (
-              <Card key={`${testimonial.initials}-${index}`} className="w-80 shrink-0">
-                <div className="flex items-center gap-3">
-                  <span className="flex h-10 w-10 items-center justify-center rounded-full bg-brand-100 font-bold text-brand-700">
-                    {testimonial.initials}
-                  </span>
-                  <div>
-                    <p className="font-semibold text-brand-900">{testimonial.name}</p>
-                    <p className="text-xs text-slate-500">
-                      {testimonial.location} · {testimonial.date}
-                    </p>
-                  </div>
-                </div>
-                <StarRating rating={5} className="mt-3 h-4 w-4" />
-                <p className="mt-3 text-sm text-slate-600">{testimonial.quote}</p>
-              </Card>
-            ))}
-          </div>
+
+        <div className="mx-auto mt-10 grid max-w-3xl grid-cols-1 gap-8 sm:grid-cols-2">
+          {VIDEO_TESTIMONIALS.map((testimonial) => (
+            <div key={testimonial.file}>
+              <div className="overflow-hidden rounded-2xl shadow-xl ring-1 ring-brand-900/10">
+                <video
+                  className="aspect-video w-full bg-brand-900 object-cover"
+                  src={`/videos/movilidad-total/${testimonial.file}.mp4`}
+                  poster={`/videos/movilidad-total/${testimonial.file}-poster.jpg`}
+                  controls
+                  playsInline
+                  preload="metadata"
+                />
+              </div>
+              <p className="mt-3 text-center font-semibold text-brand-900">{testimonial.name}</p>
+              <p className="text-center text-sm text-slate-500">{testimonial.location}</p>
+            </div>
+          ))}
         </div>
       </Section>
 

@@ -472,7 +472,7 @@ export function CheckoutExperience({
 
   return (
     <main className="min-h-screen bg-brand-50 py-10">
-      <Container className="max-w-2xl">
+      <Container className="max-w-3xl">
         <Link href="/" className="text-sm font-semibold text-brand-600 hover:text-brand-800">
           ← Volver
         </Link>
@@ -485,10 +485,14 @@ export function CheckoutExperience({
         ) : null}
 
         {step === "presentation" ? (
-          <Card className="mt-6" hoverable={false}>
-            <div className="flex flex-col gap-6 sm:flex-row">
+          <Card className="mx-auto mt-6 max-w-3xl" hoverable={false}>
+            <div className="flex flex-col items-center gap-6">
+              <h1 className="text-center font-heading text-3xl font-extrabold leading-[1.1] tracking-tight text-transparent sm:text-4xl bg-gradient-to-r from-brand-600 via-brand-500 to-accent-500 bg-clip-text">
+                {localizedProduct.name}
+              </h1>
+
               {localizedProduct.image_path ? (
-                <div className="sm:w-96 sm:shrink-0">
+                <div className="w-full px-6">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={localizedProduct.image_path}
@@ -497,29 +501,28 @@ export function CheckoutExperience({
                   />
                 </div>
               ) : null}
-              <div className="flex flex-1 flex-col">
-                <div>
-                  <h1 className="text-2xl font-bold text-brand-900">{localizedProduct.name}</h1>
-                  {localizedProduct.headline ? <p className="mt-2 text-lg font-semibold text-brand-700">{localizedProduct.headline}</p> : null}
-                  {localizedProduct.subheadline ? <p className="mt-1 text-slate-600">{localizedProduct.subheadline}</p> : null}
-                  {localizedProduct.description ? (
-                    <p className="mt-4 text-sm leading-relaxed text-slate-600">{localizedProduct.description}</p>
-                  ) : null}
-                  <div className="mt-6 flex items-center gap-3">
-                    <span className="text-2xl font-extrabold text-brand-900">
-                      {formatPrice(localizedProduct.price_cents, localizedProduct.currency)}
+
+              <div className="w-full text-left">
+                {localizedProduct.headline ? <p className="text-lg font-semibold text-brand-700">{localizedProduct.headline}</p> : null}
+                {localizedProduct.subheadline ? <p className="mt-1 text-slate-600">{localizedProduct.subheadline}</p> : null}
+                {localizedProduct.description ? (
+                  <p className="mt-4 text-sm leading-relaxed text-slate-600">{localizedProduct.description}</p>
+                ) : null}
+                <div className="mt-6 flex items-center justify-center gap-3">
+                  <span className="text-2xl font-extrabold text-brand-900">
+                    {formatPrice(localizedProduct.price_cents, localizedProduct.currency)}
+                  </span>
+                  {localizedProduct.compare_at_price_cents ? (
+                    <span className="text-base text-red-600 line-through">
+                      {formatPrice(localizedProduct.compare_at_price_cents, localizedProduct.currency)}
                     </span>
-                    {localizedProduct.compare_at_price_cents ? (
-                      <span className="text-base text-red-600 line-through">
-                        {formatPrice(localizedProduct.compare_at_price_cents, localizedProduct.currency)}
-                      </span>
-                    ) : null}
-                  </div>
+                  ) : null}
                 </div>
-                <Button size="lg" className="mt-6 self-center" onClick={() => setStep("form")}>
-                  <span className="text-xl">¡Sí, lo quiero ahora!</span>
-                </Button>
               </div>
+
+              <Button size="lg" onClick={() => setStep("form")}>
+                <span className="text-xl">¡Sí, lo quiero ahora!</span>
+              </Button>
             </div>
           </Card>
         ) : null}
