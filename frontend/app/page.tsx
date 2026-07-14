@@ -243,14 +243,14 @@ export default function LandingPage() {
               className="absolute -inset-4 animate-glow-pulse rounded-[2rem] bg-gradient-to-tr from-brand-400/30 via-accent-400/25 to-transparent blur-2xl"
               aria-hidden="true"
             />
-            <div className="relative aspect-[1408/1600] w-full overflow-hidden rounded-2xl shadow-2xl ring-1 ring-brand-900/10">
-              <Image
-                src="/fotos/hero.jpg"
-                alt="Persona feliz recuperando su movilidad"
-                fill
-                priority
-                sizes="(min-width: 1024px) 50vw, 100vw"
-                className="object-cover"
+            <div className="relative aspect-video w-full overflow-hidden rounded-2xl shadow-2xl ring-1 ring-brand-900/10">
+              <video
+                className="h-full w-full bg-brand-900 object-cover"
+                src="/videos/movilidad-total/vsl.mp4"
+                poster="/videos/movilidad-total/vsl-poster.jpg"
+                controls
+                playsInline
+                preload="metadata"
               />
             </div>
 
@@ -281,31 +281,6 @@ export default function LandingPage() {
               <p className="mt-2 text-sm font-medium uppercase tracking-wider text-slate-500">{stat.label}</p>
             </div>
           ))}
-        </div>
-      </Section>
-
-      {/* VSL */}
-      <Section className="bg-brand-900 text-white">
-        <SectionHeading
-          eyebrow="Cómo funciona"
-          title="Mira el método en acción"
-          description="Un vistazo rápido a las rutinas que estás a punto de empezar."
-          tone="dark"
-        />
-        <div className="mx-auto mt-10 max-w-3xl overflow-hidden rounded-2xl shadow-2xl ring-1 ring-white/10">
-          <video
-            className="aspect-video w-full bg-brand-900"
-            src="/videos/movilidad-total/vsl.mp4"
-            poster="/videos/movilidad-total/vsl-poster.jpg"
-            controls
-            playsInline
-            preload="metadata"
-          />
-        </div>
-        <div className="mt-8 flex justify-center">
-          <LinkButton href={CHECKOUT_HREF} size="lg">
-            ¡Quiero comenzar ahora!
-          </LinkButton>
         </div>
       </Section>
 
