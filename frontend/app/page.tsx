@@ -34,6 +34,7 @@ import { Card } from "@/components/ui/Card";
 import { Section, SectionHeading } from "@/components/ui/Section";
 import { Container } from "@/components/ui/Container";
 import { Accordion } from "@/components/ui/Accordion";
+import { HeroVideo } from "@/components/ui/HeroVideo";
 import { trackEvent } from "@/lib/meta/pixel";
 
 const PRODUCT_SLUG = "movilidad-total";
@@ -213,22 +214,19 @@ export default function LandingPage() {
               className="absolute -inset-4 animate-glow-pulse rounded-[2rem] bg-gradient-to-tr from-brand-400/30 via-accent-400/25 to-transparent blur-2xl"
               aria-hidden="true"
             />
-            <div className="relative aspect-video w-full overflow-hidden rounded-2xl shadow-2xl ring-1 ring-brand-900/10">
-              <video
-                className="h-full w-full bg-brand-900 object-cover"
-                src="/videos/movilidad-total/vsl.mp4"
-                poster="/videos/movilidad-total/vsl-poster.jpg"
-                controls
-                playsInline
-                preload="metadata"
-              />
-            </div>
+            <HeroVideo />
           </div>
 
           <div className="flex flex-col items-center gap-6">
-            <LinkButton href={CHECKOUT_HREF} size="lg">
-              ¡Quiero comenzar ahora!
-            </LinkButton>
+            <div className="flex flex-col items-center gap-3">
+              <LinkButton href={CHECKOUT_HREF} size="lg">
+                ¡Quiero comenzar ahora!
+              </LinkButton>
+              <div className="flex items-center gap-1.5 text-xs font-medium text-slate-500">
+                <ShieldCheck className="h-4 w-4 text-brand-600" strokeWidth={2} />
+                <span>Compra 100% segura y protegida</span>
+              </div>
+            </div>
 
             <div className="flex items-center justify-center gap-3">
               <div className="flex -space-x-3">
