@@ -523,6 +523,10 @@ export function CheckoutExperience({
               <Button size="lg" onClick={() => setStep("form")}>
                 <span className="text-xl">¡Sí, lo quiero ahora!</span>
               </Button>
+              <div className="flex items-center justify-center gap-1.5 text-xs text-slate-400">
+                <ShieldCheck className="h-3.5 w-3.5 text-brand-500" strokeWidth={2} />
+                <span>Compra 100% segura y protegida</span>
+              </div>
             </div>
           </Card>
         ) : null}
