@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import Image from "next/image";
 import {
   PersonStanding,
@@ -35,10 +35,21 @@ import { Section, SectionHeading } from "@/components/ui/Section";
 import { Container } from "@/components/ui/Container";
 import { Accordion } from "@/components/ui/Accordion";
 import { HeroVideo } from "@/components/ui/HeroVideo";
+import { FacebookComments, PLACEHOLDER_COMMENTS } from "@/components/ui/FacebookComments";
 import { trackEvent } from "@/lib/meta/pixel";
 
 const PRODUCT_SLUG = "movilidad-total";
 const CHECKOUT_HREF = `/checkout/${PRODUCT_SLUG}`;
+
+// Secciones desactivadas a pedido — no se borró el contenido, solo no se
+// renderiza. Poner en `true` para reactivar cualquiera de ellas.
+const SECTIONS_ACTIVE = {
+  metricas: false,
+  paraQuienEs: false,
+  porQueElegirnos: false,
+  garantia: false,
+  faq: false,
+};
 
 const BENEFITS = [
   { title: "Mayor movilidad", description: "Recupera tu rango de movimiento natural.", icon: PersonStanding },
@@ -148,17 +159,8 @@ function LogoMark({ className = "" }: { className?: string }) {
 }
 
 export default function LandingPage() {
-  const [showFloatingCta, setShowFloatingCta] = useState(false);
-
   useEffect(() => {
     trackEvent("ViewContent", { customData: { content_name: "Movilidad Total", product_slug: PRODUCT_SLUG } });
-  }, []);
-
-  useEffect(() => {
-    const handleScroll = () => setShowFloatingCta(window.scrollY > 600);
-    handleScroll();
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
   return (
@@ -170,22 +172,8 @@ export default function LandingPage() {
             <LogoMark className="h-9 w-9 text-brand-900" />
             <span className="font-heading text-lg font-bold tracking-tight text-brand-900">Movilidad Total</span>
           </div>
-          <LinkButton href={CHECKOUT_HREF} size="md">
-            Acceder ahora
-          </LinkButton>
         </Container>
       </header>
-
-      {/* Botón flotante */}
-      <div
-        className={`fixed bottom-4 right-4 z-50 transition-all duration-300 sm:bottom-6 sm:right-6 ${
-          showFloatingCta ? "translate-y-0 opacity-100" : "pointer-events-none translate-y-4 opacity-0"
-        }`}
-      >
-        <LinkButton href={CHECKOUT_HREF} size="md">
-          ¡Comenzar ahora!
-        </LinkButton>
-      </div>
 
       {/* Hero */}
       <Section className="relative overflow-hidden pt-12 sm:pt-16">
@@ -218,16 +206,6 @@ export default function LandingPage() {
           </div>
 
           <div className="flex flex-col items-center gap-6">
-            <div className="flex flex-col items-center gap-3">
-              <LinkButton href={CHECKOUT_HREF} size="lg">
-                ¡Quiero comenzar ahora!
-              </LinkButton>
-              <div className="flex items-center gap-1.5 text-xs font-medium text-slate-500">
-                <ShieldCheck className="h-4 w-4 text-brand-600" strokeWidth={2} />
-                <span>Compra 100% segura y protegida</span>
-              </div>
-            </div>
-
             <div className="flex items-center justify-center gap-3">
               <div className="flex -space-x-3">
                 {["/fotos/avatar-1.jpg", "/fotos/avatar-2.jpg", "/fotos/avatar-3.jpg"].map((src) => (
@@ -240,26 +218,80 @@ export default function LandingPage() {
                 <span className="font-bold text-brand-900">+10.000</span> personas activas
               </p>
             </div>
+
+            {/* Oculto hasta el pitch del video — ver PITCH_REVEAL_SECONDS en HeroVideo.tsx */}
+            <div className="hide flex flex-col items-center gap-3">
+              <LinkButton href={CHECKOUT_HREF} size="lg">
+                ¡Quiero comenzar ahora!
+              </LinkButton>
+              <div className="flex items-center gap-1.5 text-xs font-medium text-slate-500">
+                <ShieldCheck className="h-4 w-4 text-brand-600" strokeWidth={2} />
+                <span>Compra 100% segura y protegida</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </Section>
+
+      {/* Comentarios */}
+      <Section className="bg-brand-50/60">
+        <SectionHeading eyebrow="Comentarios" title="Lo que dice la gente" />
+        <div className="mt-10">
+          <FacebookComments comments={PLACEHOLDER_COMMENTS} />
+        </div>
+      </Section>
+
+      {/* Videos de autoridad */}
+      <Section className="overflow-hidden">
+        <SectionHeading eyebrow="Testimonios" title="Lo que dicen quienes ya empezaron" />
+        <div className="mx-auto mt-10 grid max-w-3xl grid-cols-1 gap-8 sm:grid-cols-2">
+          {VIDEO_TESTIMONIALS.map((testimonial) => (
+            <div key={testimonial.file}>
+              <div className="overflow-hidden rounded-2xl shadow-xl ring-1 ring-brand-900/10">
+                <video
+                  className="aspect-video w-full bg-brand-900 object-cover"
+                  src={`/videos/movilidad-total/${testimonial.file}.mp4`}
+                  poster={`/videos/movilidad-total/${testimonial.file}-poster.jpg`}
+                  controls
+                  playsInline
+                  preload="metadata"
+                />
+              </div>
+              <p className="mt-3 text-center font-semibold text-brand-900">{testimonial.name}</p>
+              <p className="text-center text-sm text-slate-500">{testimonial.location}</p>
+            </div>
+          ))}
+        </div>
+        {/* Oculto hasta el pitch del video — ver PITCH_REVEAL_SECONDS en HeroVideo.tsx */}
+        <div className="hide mt-10 flex flex-col items-center gap-3">
+          <LinkButton href={CHECKOUT_HREF} size="lg">
+            ¡Quiero comenzar ahora!
+          </LinkButton>
+          <div className="flex items-center gap-1.5 text-xs font-medium text-slate-500">
+            <ShieldCheck className="h-4 w-4 text-brand-600" strokeWidth={2} />
+            <span>Compra 100% segura y protegida</span>
           </div>
         </div>
       </Section>
 
       {/* Métricas */}
-      <Section className="border-y border-brand-100 bg-background py-5 sm:py-6">
-        <div className="grid grid-cols-2 gap-y-6 text-center sm:grid-cols-4">
-          {[
-            { value: "10.000+", label: "Alumnos activos" },
-            { value: "4.9", label: "Calificación media" },
-            { value: "98%", label: "Satisfacción" },
-            { value: "24h", label: "Acceso disponible" },
-          ].map((stat) => (
-            <div key={stat.label}>
-              <p className="[font-family:var(--font-stat-serif)] text-2xl font-bold text-brand-800 sm:text-3xl">{stat.value}</p>
-              <p className="mt-2 text-sm font-medium uppercase tracking-wider text-slate-500">{stat.label}</p>
-            </div>
-          ))}
-        </div>
-      </Section>
+      {SECTIONS_ACTIVE.metricas ? (
+        <Section className="border-y border-brand-100 bg-background py-5 sm:py-6">
+          <div className="grid grid-cols-2 gap-y-6 text-center sm:grid-cols-4">
+            {[
+              { value: "10.000+", label: "Alumnos activos" },
+              { value: "4.9", label: "Calificación media" },
+              { value: "98%", label: "Satisfacción" },
+              { value: "24h", label: "Acceso disponible" },
+            ].map((stat) => (
+              <div key={stat.label}>
+                <p className="[font-family:var(--font-stat-serif)] text-2xl font-bold text-brand-800 sm:text-3xl">{stat.value}</p>
+                <p className="mt-2 text-sm font-medium uppercase tracking-wider text-slate-500">{stat.label}</p>
+              </div>
+            ))}
+          </div>
+        </Section>
+      ) : null}
 
       {/* Beneficios */}
       <Section>
@@ -300,135 +332,114 @@ export default function LandingPage() {
             </Card>
           ))}
         </div>
-        <div className="mt-10 flex justify-center">
-          <LinkButton href={CHECKOUT_HREF} size="lg">
-            Quiero acceder a todo esto
-          </LinkButton>
-        </div>
       </Section>
 
       {/* Para quién es */}
-      <Section>
-        <div className="grid grid-cols-1 items-center gap-10 lg:grid-cols-2">
-          <div>
-            <SectionHeading eyebrow="¿Para quién es?" title="Diseñado especialmente para ti" />
-            <ul className="mt-8 space-y-4">
-              {AUDIENCE.map((line) => (
-                <li key={line} className="flex gap-3">
-                  <CheckIcon className="mt-0.5 h-5 w-5 shrink-0 text-brand-500" />
-                  <span className="text-slate-700">{line}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-          <div className="relative aspect-square w-full overflow-hidden rounded-2xl shadow-xl lg:aspect-[4/5]">
-            <Image
-              src="/fotos/audiencia.jpg"
-              alt="Adulto ejercitándose en casa"
-              fill
-              sizes="(min-width: 1024px) 50vw, 100vw"
-              className="object-cover"
-            />
-            <div className="absolute inset-x-4 bottom-4 flex items-center gap-3 rounded-2xl bg-white p-4 shadow-xl sm:inset-x-6 sm:bottom-6">
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-100">
-                <CheckIcon className="h-5 w-5 text-brand-600" />
-              </span>
-              <div>
-                <p className="font-bold text-brand-900">Resultados desde la primera semana</p>
-                <p className="text-sm text-slate-500">Rutinas de 10 a 15 minutos al día</p>
+      {SECTIONS_ACTIVE.paraQuienEs ? (
+        <Section>
+          <div className="grid grid-cols-1 items-center gap-10 lg:grid-cols-2">
+            <div>
+              <SectionHeading eyebrow="¿Para quién es?" title="Diseñado especialmente para ti" />
+              <ul className="mt-8 space-y-4">
+                {AUDIENCE.map((line) => (
+                  <li key={line} className="flex gap-3">
+                    <CheckIcon className="mt-0.5 h-5 w-5 shrink-0 text-brand-500" />
+                    <span className="text-slate-700">{line}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div className="relative aspect-square w-full overflow-hidden rounded-2xl shadow-xl lg:aspect-[4/5]">
+              <Image
+                src="/fotos/audiencia.jpg"
+                alt="Adulto ejercitándose en casa"
+                fill
+                sizes="(min-width: 1024px) 50vw, 100vw"
+                className="object-cover"
+              />
+              <div className="absolute inset-x-4 bottom-4 flex items-center gap-3 rounded-2xl bg-white p-4 shadow-xl sm:inset-x-6 sm:bottom-6">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-100">
+                  <CheckIcon className="h-5 w-5 text-brand-600" />
+                </span>
+                <div>
+                  <p className="font-bold text-brand-900">Resultados desde la primera semana</p>
+                  <p className="text-sm text-slate-500">Rutinas de 10 a 15 minutos al día</p>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      </Section>
+        </Section>
+      ) : null}
 
       {/* Por qué elegirnos */}
-      <Section className="bg-brand-900 text-white">
-        <SectionHeading
-          eyebrow="¿Por qué elegirnos?"
-          title="La diferencia se nota"
-          description="Comparado con lo que suelen ofrecerte por ahí."
-          tone="dark"
-        />
-        <div className="mx-auto mt-12 max-w-2xl overflow-x-auto rounded-2xl border border-brand-100 bg-white">
-          <table className="w-full text-left">
-            <thead>
-              <tr className="border-b border-brand-100 text-sm text-slate-500">
-                <th className="px-6 py-4 font-semibold">Característica</th>
-                <th className="px-6 py-4 text-center font-semibold text-brand-700">Nuestro programa</th>
-                <th className="px-6 py-4 text-center font-semibold">Otros</th>
-              </tr>
-            </thead>
-            <tbody>
-              {COMPARISON.map((row) => (
-                <tr key={row.feature} className="border-b border-brand-50 last:border-0">
-                  <td className="px-6 py-4 text-sm text-slate-700">{row.feature}</td>
-                  <td className="px-6 py-4 text-center">
-                    {row.ours ? (
-                      <Check className="mx-auto h-5 w-5 text-brand-500" strokeWidth={2.5} />
-                    ) : (
-                      <X className="mx-auto h-5 w-5 text-slate-300" strokeWidth={2.5} />
-                    )}
-                  </td>
-                  <td className="px-6 py-4 text-center">
-                    {!row.ours ? (
-                      <Check className="mx-auto h-5 w-5 text-slate-400" strokeWidth={2.5} />
-                    ) : (
-                      <X className="mx-auto h-5 w-5 text-slate-300" strokeWidth={2.5} />
-                    )}
-                  </td>
+      {SECTIONS_ACTIVE.porQueElegirnos ? (
+        <Section className="bg-brand-900 text-white">
+          <SectionHeading
+            eyebrow="¿Por qué elegirnos?"
+            title="La diferencia se nota"
+            description="Comparado con lo que suelen ofrecerte por ahí."
+            tone="dark"
+          />
+          <div className="mx-auto mt-12 max-w-2xl overflow-x-auto rounded-2xl border border-brand-100 bg-white">
+            <table className="w-full text-left">
+              <thead>
+                <tr className="border-b border-brand-100 text-sm text-slate-500">
+                  <th className="px-6 py-4 font-semibold">Característica</th>
+                  <th className="px-6 py-4 text-center font-semibold text-brand-700">Nuestro programa</th>
+                  <th className="px-6 py-4 text-center font-semibold">Otros</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </Section>
-
-      {/* Opiniones */}
-      <Section className="overflow-hidden">
-        <SectionHeading eyebrow="Opiniones" title="Lo que dicen quienes ya empezaron" />
-
-        <div className="mx-auto mt-10 grid max-w-3xl grid-cols-1 gap-8 sm:grid-cols-2">
-          {VIDEO_TESTIMONIALS.map((testimonial) => (
-            <div key={testimonial.file}>
-              <div className="overflow-hidden rounded-2xl shadow-xl ring-1 ring-brand-900/10">
-                <video
-                  className="aspect-video w-full bg-brand-900 object-cover"
-                  src={`/videos/movilidad-total/${testimonial.file}.mp4`}
-                  poster={`/videos/movilidad-total/${testimonial.file}-poster.jpg`}
-                  controls
-                  playsInline
-                  preload="metadata"
-                />
-              </div>
-              <p className="mt-3 text-center font-semibold text-brand-900">{testimonial.name}</p>
-              <p className="text-center text-sm text-slate-500">{testimonial.location}</p>
-            </div>
-          ))}
-        </div>
-      </Section>
+              </thead>
+              <tbody>
+                {COMPARISON.map((row) => (
+                  <tr key={row.feature} className="border-b border-brand-50 last:border-0">
+                    <td className="px-6 py-4 text-sm text-slate-700">{row.feature}</td>
+                    <td className="px-6 py-4 text-center">
+                      {row.ours ? (
+                        <Check className="mx-auto h-5 w-5 text-brand-500" strokeWidth={2.5} />
+                      ) : (
+                        <X className="mx-auto h-5 w-5 text-slate-300" strokeWidth={2.5} />
+                      )}
+                    </td>
+                    <td className="px-6 py-4 text-center">
+                      {!row.ours ? (
+                        <Check className="mx-auto h-5 w-5 text-slate-400" strokeWidth={2.5} />
+                      ) : (
+                        <X className="mx-auto h-5 w-5 text-slate-300" strokeWidth={2.5} />
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Section>
+      ) : null}
 
       {/* Garantía */}
-      <Section className="bg-brand-900 text-white">
-        <SectionHeading eyebrow="Garantía" title="Compra con total tranquilidad" tone="dark" />
-        <div className="mt-12 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-5">
-          {GUARANTEES.map((item) => (
-            <Card key={item.title} className="flex flex-col items-center bg-white text-center">
-              <item.icon className="h-7 w-7 text-brand-600" strokeWidth={1.75} />
-              <p className="mt-4 font-bold text-brand-900">{item.title}</p>
-              <p className="mt-1 text-sm text-slate-600">{item.description}</p>
-            </Card>
-          ))}
-        </div>
-      </Section>
+      {SECTIONS_ACTIVE.garantia ? (
+        <Section className="bg-brand-900 text-white">
+          <SectionHeading eyebrow="Garantía" title="Compra con total tranquilidad" tone="dark" />
+          <div className="mt-12 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-5">
+            {GUARANTEES.map((item) => (
+              <Card key={item.title} className="flex flex-col items-center bg-white text-center">
+                <item.icon className="h-7 w-7 text-brand-600" strokeWidth={1.75} />
+                <p className="mt-4 font-bold text-brand-900">{item.title}</p>
+                <p className="mt-1 text-sm text-slate-600">{item.description}</p>
+              </Card>
+            ))}
+          </div>
+        </Section>
+      ) : null}
 
       {/* FAQ */}
-      <Section>
-        <SectionHeading eyebrow="Preguntas frecuentes" title="Todo lo que necesitas saber" />
-        <div className="mx-auto mt-12 max-w-2xl">
-          <Accordion items={FAQS} />
-        </div>
-      </Section>
+      {SECTIONS_ACTIVE.faq ? (
+        <Section>
+          <SectionHeading eyebrow="Preguntas frecuentes" title="Todo lo que necesitas saber" />
+          <div className="mx-auto mt-12 max-w-2xl">
+            <Accordion items={FAQS} />
+          </div>
+        </Section>
+      ) : null}
 
       {/* Cierre final */}
       <Section className="bg-brand-900 text-white">
@@ -439,12 +450,7 @@ export default function LandingPage() {
             Cada día que pasa es una oportunidad más para volver a moverte con libertad. Únete a miles de adultos que
             ya recuperaron su vida diaria.
           </p>
-          <div className="mt-8 flex justify-center">
-            <LinkButton href={CHECKOUT_HREF} size="lg">
-              ¡Quiero acceder ahora!
-            </LinkButton>
-          </div>
-          <div className="mt-4 flex flex-wrap justify-center gap-x-6 gap-y-1 text-sm text-brand-200">
+          <div className="mt-8 flex flex-wrap justify-center gap-x-6 gap-y-1 text-sm text-brand-200">
             <span>Pago seguro</span>
             <span>Acceso inmediato</span>
             <span>Acceso ilimitado</span>
