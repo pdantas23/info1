@@ -104,3 +104,15 @@ body {
 .hide {
   display: none !important;
 }
+
+/* Controles nativos recortados en los videos de testimonios: sin duración
+   total, sin botón de pantalla completa y sin control de sonido/volumen.
+   Solo funciona en navegadores basados en WebKit/Blink (Chrome, Safari);
+   controlsList cubre además el fallback de pantalla completa. */
+.testimonial-video::-webkit-media-controls-mute-button,
+.testimonial-video::-webkit-media-controls-volume-slider,
+.testimonial-video::-webkit-media-controls-volume-slider-container,
+.testimonial-video::-webkit-media-controls-fullscreen-button,
+.testimonial-video::-webkit-media-controls-time-remaining-display {
+  display: none !important;
+}

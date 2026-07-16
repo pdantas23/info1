@@ -220,11 +220,11 @@ export default function LandingPage() {
             </div>
 
             {/* Oculto hasta el pitch del video — ver PITCH_REVEAL_SECONDS en HeroVideo.tsx */}
-            <div className="hide flex flex-col items-center gap-3">
+            <div className="hide mx-auto flex w-full max-w-sm flex-col items-center gap-5 text-center">
               <LinkButton href={CHECKOUT_HREF} size="lg">
                 ¡Quiero comenzar ahora!
               </LinkButton>
-              <div className="flex items-center gap-1.5 text-xs font-medium text-slate-500">
+              <div className="flex items-center justify-center gap-1.5 text-xs font-medium text-slate-500">
                 <ShieldCheck className="h-4 w-4 text-brand-600" strokeWidth={2} />
                 <span>Compra 100% segura y protegida</span>
               </div>
@@ -249,10 +249,12 @@ export default function LandingPage() {
             <div key={testimonial.file}>
               <div className="overflow-hidden rounded-2xl shadow-xl ring-1 ring-brand-900/10">
                 <video
-                  className="aspect-video w-full bg-brand-900 object-cover"
+                  className="testimonial-video aspect-video w-full bg-brand-900 object-cover"
                   src={`/videos/movilidad-total/${testimonial.file}.mp4`}
                   poster={`/videos/movilidad-total/${testimonial.file}-poster.jpg`}
                   controls
+                  controlsList="nofullscreen noremoteplayback"
+                  disablePictureInPicture
                   playsInline
                   preload="metadata"
                 />
@@ -263,11 +265,11 @@ export default function LandingPage() {
           ))}
         </div>
         {/* Oculto hasta el pitch del video — ver PITCH_REVEAL_SECONDS en HeroVideo.tsx */}
-        <div className="hide mt-10 flex flex-col items-center gap-3">
+        <div className="hide mx-auto mt-10 flex w-full max-w-sm flex-col items-center gap-5 text-center">
           <LinkButton href={CHECKOUT_HREF} size="lg">
             ¡Quiero comenzar ahora!
           </LinkButton>
-          <div className="flex items-center gap-1.5 text-xs font-medium text-slate-500">
+          <div className="flex items-center justify-center gap-1.5 text-xs font-medium text-slate-500">
             <ShieldCheck className="h-4 w-4 text-brand-600" strokeWidth={2} />
             <span>Compra 100% segura y protegida</span>
           </div>
