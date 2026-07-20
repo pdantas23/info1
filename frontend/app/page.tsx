@@ -473,17 +473,7 @@ export default function LandingPage() {
       <footer className="border-t border-brand-100 bg-white py-10 text-sm text-slate-500">
         <Container className="flex flex-col items-center gap-4 text-center">
           <span className="text-base font-extrabold text-brand-800">Movilidad Total</span>
-          <nav className="flex flex-wrap justify-center gap-x-6 gap-y-1">
-            <a href="#" className="hover:text-brand-700">Política de privacidad</a>
-            <a href="#" className="hover:text-brand-700">Términos y condiciones</a>
-            <a href="#" className="hover:text-brand-700">Aviso legal</a>
-            <a href="#" className="hover:text-brand-700">Contacto</a>
-          </nav>
           <p>© 2026 Movilidad Total. Todos los derechos reservados.</p>
-          <p className="max-w-xl text-xs text-slate-400">
-            Este programa es de carácter informativo y no sustituye la consulta médica profesional. Los resultados
-            pueden variar según cada persona.
-          </p>
         </Container>
       </footer>
     </main>
