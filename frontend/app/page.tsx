@@ -45,10 +45,13 @@ const CHECKOUT_HREF = `/checkout/${PRODUCT_SLUG}`;
 // renderiza. Poner en `true` para reactivar cualquiera de ellas.
 const SECTIONS_ACTIVE = {
   metricas: false,
+  beneficios: false,
+  queIncluye: false,
   paraQuienEs: false,
   porQueElegirnos: false,
   garantia: false,
   faq: false,
+  cierreFinal: false,
 };
 
 const BENEFITS = [
@@ -296,45 +299,49 @@ export default function LandingPage() {
       ) : null}
 
       {/* Beneficios */}
-      <Section>
-        <SectionHeading
-          eyebrow="Beneficios"
-          title="Todo lo que vas a lograr"
-          description="Un método pensado para adultos que quieren volver a moverse con confianza."
-        />
-        <div className="mt-12 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {BENEFITS.map((benefit) => (
-            <Card key={benefit.title} className="flex items-start gap-4">
-              <benefit.icon className="mt-0.5 h-6 w-6 shrink-0 text-brand-600" strokeWidth={1.75} />
-              <div>
-                <p className="font-bold text-brand-900">{benefit.title}</p>
-                <p className="mt-1 text-sm text-slate-600">{benefit.description}</p>
-              </div>
-            </Card>
-          ))}
-        </div>
-      </Section>
+      {SECTIONS_ACTIVE.beneficios ? (
+        <Section>
+          <SectionHeading
+            eyebrow="Beneficios"
+            title="Todo lo que vas a lograr"
+            description="Un método pensado para adultos que quieren volver a moverse con confianza."
+          />
+          <div className="mt-12 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            {BENEFITS.map((benefit) => (
+              <Card key={benefit.title} className="flex items-start gap-4">
+                <benefit.icon className="mt-0.5 h-6 w-6 shrink-0 text-brand-600" strokeWidth={1.75} />
+                <div>
+                  <p className="font-bold text-brand-900">{benefit.title}</p>
+                  <p className="mt-1 text-sm text-slate-600">{benefit.description}</p>
+                </div>
+              </Card>
+            ))}
+          </div>
+        </Section>
+      ) : null}
 
       {/* Qué incluye */}
-      <Section className="bg-brand-900 text-white">
-        <SectionHeading
-          eyebrow="¿Qué incluye?"
-          title="Todo lo que recibes al inscribirte"
-          description="Un paquete completo para transformar tu movilidad, sin nada extra que pagar."
-          tone="dark"
-        />
-        <div className="mt-12 grid grid-cols-1 gap-5 sm:grid-cols-2">
-          {INCLUDES.map((item) => (
-            <Card key={item.title} className="flex items-start gap-4 bg-white">
-              <item.icon className="mt-0.5 h-6 w-6 shrink-0 text-accent-600" strokeWidth={1.75} />
-              <div>
-                <p className="font-bold text-brand-900">{item.title}</p>
-                <p className="mt-1 text-sm text-slate-600">{item.description}</p>
-              </div>
-            </Card>
-          ))}
-        </div>
-      </Section>
+      {SECTIONS_ACTIVE.queIncluye ? (
+        <Section className="bg-brand-900 text-white">
+          <SectionHeading
+            eyebrow="¿Qué incluye?"
+            title="Todo lo que recibes al inscribirte"
+            description="Un paquete completo para transformar tu movilidad, sin nada extra que pagar."
+            tone="dark"
+          />
+          <div className="mt-12 grid grid-cols-1 gap-5 sm:grid-cols-2">
+            {INCLUDES.map((item) => (
+              <Card key={item.title} className="flex items-start gap-4 bg-white">
+                <item.icon className="mt-0.5 h-6 w-6 shrink-0 text-accent-600" strokeWidth={1.75} />
+                <div>
+                  <p className="font-bold text-brand-900">{item.title}</p>
+                  <p className="mt-1 text-sm text-slate-600">{item.description}</p>
+                </div>
+              </Card>
+            ))}
+          </div>
+        </Section>
+      ) : null}
 
       {/* Para quién es */}
       {SECTIONS_ACTIVE.paraQuienEs ? (
@@ -444,21 +451,23 @@ export default function LandingPage() {
       ) : null}
 
       {/* Cierre final */}
-      <Section className="bg-brand-900 text-white">
-        <div className="mx-auto max-w-2xl text-center">
-          <h2 className="text-3xl font-extrabold sm:text-4xl">Empieza hoy mismo</h2>
-          <p className="mt-2 text-lg font-medium text-brand-200">Tu movilidad no puede esperar más.</p>
-          <p className="mt-4 text-brand-100">
-            Cada día que pasa es una oportunidad más para volver a moverte con libertad. Únete a miles de adultos que
-            ya recuperaron su vida diaria.
-          </p>
-          <div className="mt-8 flex flex-wrap justify-center gap-x-6 gap-y-1 text-sm text-brand-200">
-            <span>Pago seguro</span>
-            <span>Acceso inmediato</span>
-            <span>Acceso ilimitado</span>
+      {SECTIONS_ACTIVE.cierreFinal ? (
+        <Section className="bg-brand-900 text-white">
+          <div className="mx-auto max-w-2xl text-center">
+            <h2 className="text-3xl font-extrabold sm:text-4xl">Empieza hoy mismo</h2>
+            <p className="mt-2 text-lg font-medium text-brand-200">Tu movilidad no puede esperar más.</p>
+            <p className="mt-4 text-brand-100">
+              Cada día que pasa es una oportunidad más para volver a moverte con libertad. Únete a miles de adultos que
+              ya recuperaron su vida diaria.
+            </p>
+            <div className="mt-8 flex flex-wrap justify-center gap-x-6 gap-y-1 text-sm text-brand-200">
+              <span>Pago seguro</span>
+              <span>Acceso inmediato</span>
+              <span>Acceso ilimitado</span>
+            </div>
           </div>
-        </div>
-      </Section>
+        </Section>
+      ) : null}
 
       {/* Footer */}
       <footer className="border-t border-brand-100 bg-white py-10 text-sm text-slate-500">
