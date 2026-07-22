@@ -28,8 +28,12 @@ export function HeroVideo() {
   ReactDOM.prefetchDNS("https://license.vturb.com");
 
   return (
-    <div className="relative aspect-video w-full overflow-hidden rounded-2xl bg-brand-900 shadow-2xl ring-1 ring-brand-900/10">
-      <vturb-smartplayer id={playerId} style={{ display: "block", margin: "0 auto", width: "100%" }}>
+    <div className="relative aspect-video w-full overflow-hidden rounded-3xl bg-brand-900 shadow-2xl ring-1 ring-brand-900/10">
+      <vturb-smartplayer
+        id={playerId}
+        className="block overflow-hidden rounded-3xl"
+        style={{ display: "block", margin: "0 auto", width: "100%", "--player-border-radius": "24px" } as React.CSSProperties}
+      >
         <div
           className="vturb-player-placeholder"
           style={{ position: "relative", width: "100%", padding: "56.25% 0 0", zIndex: 0, backgroundColor: "black" }}

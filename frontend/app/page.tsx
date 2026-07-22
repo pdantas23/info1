@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import Image from "next/image";
 import {
   PersonStanding,
@@ -41,17 +41,21 @@ import { trackEvent } from "@/lib/meta/pixel";
 const PRODUCT_SLUG = "movilidad-total";
 const CHECKOUT_HREF = `/checkout/${PRODUCT_SLUG}`;
 
-// Secciones desactivadas a pedido — no se borró el contenido, solo no se
-// renderiza. Poner en `true` para reactivar cualquiera de ellas.
+// Controla qué secciones se renderizan — el contenido nunca se borra, solo
+// se deja de mostrar poniendo la flag en `false`. Orden pensado para
+// construir confianza antes de pedir datos: prueba rápida (métricas) ->
+// valor de la oferta (beneficios/para quién es/qué incluye) -> prueba social
+// con contexto (comentarios/testimonios) -> diferenciación y cierre de
+// objeciones (por qué elegirnos/garantía/faq) -> CTA final.
 const SECTIONS_ACTIVE = {
   metricas: false,
-  beneficios: false,
-  queIncluye: false,
-  paraQuienEs: false,
-  porQueElegirnos: false,
-  garantia: false,
-  faq: false,
-  cierreFinal: false,
+  beneficios: true,
+  paraQuienEs: true,
+  queIncluye: true,
+  porQueElegirnos: true,
+  garantia: true,
+  faq: true,
+  cierreFinal: true,
 };
 
 const BENEFITS = [
@@ -162,8 +166,17 @@ function LogoMark({ className = "" }: { className?: string }) {
 }
 
 export default function LandingPage() {
+  const [showFloatingCta, setShowFloatingCta] = useState(false);
+
   useEffect(() => {
     trackEvent("ViewContent", { customData: { content_name: "Movilidad Total", product_slug: PRODUCT_SLUG } });
+  }, []);
+
+  useEffect(() => {
+    const handleScroll = () => setShowFloatingCta(window.scrollY > 600);
+    handleScroll();
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
   return (
@@ -177,6 +190,17 @@ export default function LandingPage() {
           </div>
         </Container>
       </header>
+
+      {/* Botón flotante */}
+      <div
+        className={`fixed bottom-4 right-4 z-50 transition-all duration-300 sm:bottom-6 sm:right-6 ${
+          showFloatingCta ? "translate-y-0 opacity-100" : "pointer-events-none translate-y-4 opacity-0"
+        }`}
+      >
+        <LinkButton href={CHECKOUT_HREF} size="md">
+          ¡Comenzar ahora!
+        </LinkButton>
+      </div>
 
       {/* Hero */}
       <Section className="relative overflow-hidden pt-12 sm:pt-16">
@@ -235,6 +259,125 @@ export default function LandingPage() {
         </div>
       </Section>
 
+      {/* Métricas */}
+      {SECTIONS_ACTIVE.metricas ? (
+        <Section className="border-y border-brand-100 bg-background py-5 sm:py-6">
+          <div className="grid grid-cols-2 gap-y-6 text-center sm:grid-cols-4">
+            {[
+              { value: "10.000+", label: "Alumnos activos" },
+              { value: "4.9", label: "Calificación media" },
+              { value: "98%", label: "Satisfacción" },
+              { value: "24h", label: "Acceso disponible" },
+            ].map((stat) => (
+              <div key={stat.label}>
+                <p className="[font-family:var(--font-stat-serif)] text-2xl font-bold text-brand-800 sm:text-3xl">{stat.value}</p>
+                <p className="mt-2 text-sm font-medium uppercase tracking-wider text-slate-500">{stat.label}</p>
+              </div>
+            ))}
+          </div>
+        </Section>
+      ) : null}
+
+      {/* Beneficios */}
+      {SECTIONS_ACTIVE.beneficios ? (
+        <Section>
+          <SectionHeading
+            eyebrow="Beneficios"
+            title="Todo lo que vas a lograr"
+            description="Un método pensado para adultos que quieren volver a moverse con confianza."
+          />
+          <div className="mt-12 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            {BENEFITS.map((benefit) => (
+              <Card key={benefit.title} className="flex items-start gap-4">
+                <benefit.icon className="mt-0.5 h-6 w-6 shrink-0 text-brand-600" strokeWidth={1.75} />
+                <div>
+                  <p className="font-bold text-brand-900">{benefit.title}</p>
+                  <p className="mt-1 text-sm text-slate-600">{benefit.description}</p>
+                </div>
+              </Card>
+            ))}
+          </div>
+          <div className="mx-auto mt-10 flex w-full max-w-sm flex-col items-center gap-5 text-center">
+            <LinkButton href={CHECKOUT_HREF} size="lg">
+              ¡Quiero comenzar ahora!
+            </LinkButton>
+            <div className="flex items-center justify-center gap-1.5 text-xs font-medium text-slate-500">
+              <ShieldCheck className="h-4 w-4 text-brand-600" strokeWidth={2} />
+              <span>Compra 100% segura y protegida</span>
+            </div>
+          </div>
+        </Section>
+      ) : null}
+
+      {/* Para quién es */}
+      {SECTIONS_ACTIVE.paraQuienEs ? (
+        <Section>
+          <div className="grid grid-cols-1 items-center gap-10 lg:grid-cols-2">
+            <div>
+              <SectionHeading eyebrow="¿Para quién es?" title="Diseñado especialmente para ti" />
+              <ul className="mt-8 space-y-4">
+                {AUDIENCE.map((line) => (
+                  <li key={line} className="flex gap-3">
+                    <CheckIcon className="mt-0.5 h-5 w-5 shrink-0 text-brand-500" />
+                    <span className="text-slate-700">{line}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div className="relative aspect-square w-full overflow-hidden rounded-2xl shadow-xl lg:aspect-[4/5]">
+              <Image
+                src="/fotos/audiencia.jpg"
+                alt="Adulto ejercitándose en casa"
+                fill
+                sizes="(min-width: 1024px) 50vw, 100vw"
+                className="object-cover"
+              />
+              <div className="absolute inset-x-4 bottom-4 flex items-center gap-3 rounded-2xl bg-white p-4 shadow-xl sm:inset-x-6 sm:bottom-6">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-100">
+                  <CheckIcon className="h-5 w-5 text-brand-600" />
+                </span>
+                <div>
+                  <p className="font-bold text-brand-900">Resultados desde la primera semana</p>
+                  <p className="text-sm text-slate-500">Rutinas de 10 a 15 minutos al día</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </Section>
+      ) : null}
+
+      {/* Qué incluye */}
+      {SECTIONS_ACTIVE.queIncluye ? (
+        <Section className="bg-brand-900 text-white">
+          <SectionHeading
+            eyebrow="¿Qué incluye?"
+            title="Todo lo que recibes al inscribirte"
+            description="Un paquete completo para transformar tu movilidad, sin nada extra que pagar."
+            tone="dark"
+          />
+          <div className="mt-12 grid grid-cols-1 gap-5 sm:grid-cols-2">
+            {INCLUDES.map((item) => (
+              <Card key={item.title} className="flex items-start gap-4 bg-white">
+                <item.icon className="mt-0.5 h-6 w-6 shrink-0 text-accent-600" strokeWidth={1.75} />
+                <div>
+                  <p className="font-bold text-brand-900">{item.title}</p>
+                  <p className="mt-1 text-sm text-slate-600">{item.description}</p>
+                </div>
+              </Card>
+            ))}
+          </div>
+          <div className="mx-auto mt-10 flex w-full max-w-sm flex-col items-center gap-5 text-center">
+            <LinkButton href={CHECKOUT_HREF} size="lg">
+              ¡Quiero comenzar ahora!
+            </LinkButton>
+            <div className="flex items-center justify-center gap-1.5 text-xs font-medium text-brand-200">
+              <ShieldCheck className="h-4 w-4" strokeWidth={2} />
+              <span>Compra 100% segura y protegida</span>
+            </div>
+          </div>
+        </Section>
+      ) : null}
+
       {/* Comentarios */}
       <Section className="bg-brand-50/60">
         <SectionHeading eyebrow="Comentarios" title="Lo que dice la gente" />
@@ -277,107 +420,6 @@ export default function LandingPage() {
         </div>
       </Section>
 
-      {/* Métricas */}
-      {SECTIONS_ACTIVE.metricas ? (
-        <Section className="border-y border-brand-100 bg-background py-5 sm:py-6">
-          <div className="grid grid-cols-2 gap-y-6 text-center sm:grid-cols-4">
-            {[
-              { value: "10.000+", label: "Alumnos activos" },
-              { value: "4.9", label: "Calificación media" },
-              { value: "98%", label: "Satisfacción" },
-              { value: "24h", label: "Acceso disponible" },
-            ].map((stat) => (
-              <div key={stat.label}>
-                <p className="[font-family:var(--font-stat-serif)] text-2xl font-bold text-brand-800 sm:text-3xl">{stat.value}</p>
-                <p className="mt-2 text-sm font-medium uppercase tracking-wider text-slate-500">{stat.label}</p>
-              </div>
-            ))}
-          </div>
-        </Section>
-      ) : null}
-
-      {/* Beneficios */}
-      {SECTIONS_ACTIVE.beneficios ? (
-        <Section>
-          <SectionHeading
-            eyebrow="Beneficios"
-            title="Todo lo que vas a lograr"
-            description="Un método pensado para adultos que quieren volver a moverse con confianza."
-          />
-          <div className="mt-12 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {BENEFITS.map((benefit) => (
-              <Card key={benefit.title} className="flex items-start gap-4">
-                <benefit.icon className="mt-0.5 h-6 w-6 shrink-0 text-brand-600" strokeWidth={1.75} />
-                <div>
-                  <p className="font-bold text-brand-900">{benefit.title}</p>
-                  <p className="mt-1 text-sm text-slate-600">{benefit.description}</p>
-                </div>
-              </Card>
-            ))}
-          </div>
-        </Section>
-      ) : null}
-
-      {/* Qué incluye */}
-      {SECTIONS_ACTIVE.queIncluye ? (
-        <Section className="bg-brand-900 text-white">
-          <SectionHeading
-            eyebrow="¿Qué incluye?"
-            title="Todo lo que recibes al inscribirte"
-            description="Un paquete completo para transformar tu movilidad, sin nada extra que pagar."
-            tone="dark"
-          />
-          <div className="mt-12 grid grid-cols-1 gap-5 sm:grid-cols-2">
-            {INCLUDES.map((item) => (
-              <Card key={item.title} className="flex items-start gap-4 bg-white">
-                <item.icon className="mt-0.5 h-6 w-6 shrink-0 text-accent-600" strokeWidth={1.75} />
-                <div>
-                  <p className="font-bold text-brand-900">{item.title}</p>
-                  <p className="mt-1 text-sm text-slate-600">{item.description}</p>
-                </div>
-              </Card>
-            ))}
-          </div>
-        </Section>
-      ) : null}
-
-      {/* Para quién es */}
-      {SECTIONS_ACTIVE.paraQuienEs ? (
-        <Section>
-          <div className="grid grid-cols-1 items-center gap-10 lg:grid-cols-2">
-            <div>
-              <SectionHeading eyebrow="¿Para quién es?" title="Diseñado especialmente para ti" />
-              <ul className="mt-8 space-y-4">
-                {AUDIENCE.map((line) => (
-                  <li key={line} className="flex gap-3">
-                    <CheckIcon className="mt-0.5 h-5 w-5 shrink-0 text-brand-500" />
-                    <span className="text-slate-700">{line}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-            <div className="relative aspect-square w-full overflow-hidden rounded-2xl shadow-xl lg:aspect-[4/5]">
-              <Image
-                src="/fotos/audiencia.jpg"
-                alt="Adulto ejercitándose en casa"
-                fill
-                sizes="(min-width: 1024px) 50vw, 100vw"
-                className="object-cover"
-              />
-              <div className="absolute inset-x-4 bottom-4 flex items-center gap-3 rounded-2xl bg-white p-4 shadow-xl sm:inset-x-6 sm:bottom-6">
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-100">
-                  <CheckIcon className="h-5 w-5 text-brand-600" />
-                </span>
-                <div>
-                  <p className="font-bold text-brand-900">Resultados desde la primera semana</p>
-                  <p className="text-sm text-slate-500">Rutinas de 10 a 15 minutos al día</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </Section>
-      ) : null}
-
       {/* Por qué elegirnos */}
       {SECTIONS_ACTIVE.porQueElegirnos ? (
         <Section className="bg-brand-900 text-white">
@@ -419,6 +461,15 @@ export default function LandingPage() {
               </tbody>
             </table>
           </div>
+          <div className="mx-auto mt-10 flex w-full max-w-sm flex-col items-center gap-5 text-center">
+            <LinkButton href={CHECKOUT_HREF} size="lg">
+              ¡Quiero comenzar ahora!
+            </LinkButton>
+            <div className="flex items-center justify-center gap-1.5 text-xs font-medium text-brand-200">
+              <ShieldCheck className="h-4 w-4" strokeWidth={2} />
+              <span>Compra 100% segura y protegida</span>
+            </div>
+          </div>
         </Section>
       ) : null}
 
@@ -434,6 +485,15 @@ export default function LandingPage() {
                 <p className="mt-1 text-sm text-slate-600">{item.description}</p>
               </Card>
             ))}
+          </div>
+          <div className="mx-auto mt-10 flex w-full max-w-sm flex-col items-center gap-5 text-center">
+            <LinkButton href={CHECKOUT_HREF} size="lg">
+              ¡Quiero comenzar ahora!
+            </LinkButton>
+            <div className="flex items-center justify-center gap-1.5 text-xs font-medium text-brand-200">
+              <ShieldCheck className="h-4 w-4" strokeWidth={2} />
+              <span>Compra 100% segura y protegida</span>
+            </div>
           </div>
         </Section>
       ) : null}
@@ -458,7 +518,16 @@ export default function LandingPage() {
               Cada día que pasa es una oportunidad más para volver a moverte con libertad. Únete a miles de adultos que
               ya recuperaron su vida diaria.
             </p>
-            <div className="mt-8 flex flex-wrap justify-center gap-x-6 gap-y-1 text-sm text-brand-200">
+            <div className="mx-auto mt-8 flex w-full max-w-sm flex-col items-center gap-5">
+              <LinkButton href={CHECKOUT_HREF} size="lg">
+                ¡Quiero comenzar ahora!
+              </LinkButton>
+              <div className="flex items-center justify-center gap-1.5 text-xs font-medium text-brand-200">
+                <ShieldCheck className="h-4 w-4" strokeWidth={2} />
+                <span>Compra 100% segura y protegida</span>
+              </div>
+            </div>
+            <div className="mt-6 flex flex-wrap justify-center gap-x-6 gap-y-1 text-sm text-brand-200">
               <span>Pago seguro</span>
               <span>Acceso inmediato</span>
               <span>Acceso ilimitado</span>

@@ -3,14 +3,17 @@
 import { useState } from "react";
 
 export function Accordion({ items }: { items: { question: string; answer: string }[] }) {
-  const [openIndex, setOpenIndex] = useState<number | null>(0);
+  const [openIndex, setOpenIndex] = useState<number | null>(null);
 
   return (
     <div className="divide-y divide-brand-100 overflow-hidden rounded-2xl border border-brand-100 bg-white">
       {items.map((item, index) => {
         const isOpen = openIndex === index;
         return (
-          <div key={item.question}>
+          <div
+            key={item.question}
+            className={`border-l-4 transition-colors duration-200 ${isOpen ? "border-l-brand-500" : "border-l-transparent"}`}
+          >
             <button
               type="button"
               onClick={() => setOpenIndex(isOpen ? null : index)}

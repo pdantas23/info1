@@ -534,7 +534,9 @@ export function CheckoutExperience({
         {step === "form" ? (
           <Card className="mt-6" hoverable={false}>
             <h1 className="text-xl font-bold text-brand-900">Tus datos</h1>
-            <p className="mt-1 text-sm text-slate-500">Los usaremos para enviarte el acceso y novedades del programa.</p>
+            <p className="mt-1 text-sm text-slate-500">
+              Los usamos únicamente para enviarte el acceso al programa. Nunca los compartimos ni recibirás spam.
+            </p>
             <form onSubmit={handleLeadSubmit} className="mt-6 space-y-4">
               <Input
                 id="fullName"
@@ -586,7 +588,7 @@ export function CheckoutExperience({
             </form>
             <div className="mt-4 flex items-center justify-center gap-1.5 text-xs text-slate-400">
               <ShieldCheck className="h-3.5 w-3.5 text-brand-500" strokeWidth={2} />
-              <span>Tus datos están 100% seguros y encriptados</span>
+              <span>Datos encriptados — solo se usan para enviarte tu compra, nunca se comparten</span>
             </div>
           </Card>
         ) : null}

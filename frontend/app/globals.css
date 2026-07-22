@@ -97,6 +97,14 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
+/* El script del propio VTurb sobrescribe --player-border-radius (inline,
+   sin !important) al inicializar el player, pisando el estilo inline de
+   React — confirmado inspeccionando el DOM ya renderizado. Una regla con
+   !important en el stylesheet gana esa pulseada igual. */
+vturb-smartplayer {
+  --player-border-radius: 24px !important;
+}
+
 /* Controles nativos recortados en los videos de testimonios: sin duración
    total, sin botón de pantalla completa y sin control de sonido/volumen.
    Solo funciona en navegadores basados en WebKit/Blink (Chrome, Safari);
