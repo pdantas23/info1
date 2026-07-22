@@ -38,7 +38,9 @@ export default async function DashboardLeadsPage() {
                 <td className="px-5 py-3 text-slate-700">{lead.country ?? "—"}</td>
                 <td className="px-5 py-3 text-slate-700">{lead.product_slug}</td>
                 <td className="px-5 py-3 text-slate-700">{lead.utm_source ?? "—"}</td>
-                <td className="px-5 py-3 text-slate-500">{new Date(lead.created_at).toLocaleString("pt-BR")}</td>
+                <td className="px-5 py-3 text-slate-500">
+                  {new Date(lead.created_at).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}
+                </td>
               </tr>
             ))}
             {leads && leads.length === 0 ? (

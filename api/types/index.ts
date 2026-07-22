@@ -42,7 +42,7 @@ export type OrderItem = {
   price_cents: number;
 };
 
-export type OrderStatus = "pending" | "mock_paid" | "paid" | "failed";
+export type OrderStatus = "pending" | "mock_paid" | "paid" | "failed" | "canceled";
 
 export type Order = {
   id: string;

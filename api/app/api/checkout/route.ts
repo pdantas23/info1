@@ -126,6 +126,9 @@ export async function POST(request: Request) {
       success_url: `${frontendUrl}/checkout/${productSlugForUrls}/success?amount=${totalCents}&currency=${sessionCurrency}`,
       cancel_url: `${frontendUrl}/checkout/${productSlugForUrls}`,
       metadata: { orderId: String(orderId) },
+      // Mínimo permitido pela Stripe (30min) — carrinho abandonado vira
+      // "canceled" bem mais rápido que o padrão deles de 24h.
+      expires_at: Math.floor(Date.now() / 1000) + 30 * 60,
     });
   }
 

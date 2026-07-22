@@ -35,11 +35,15 @@ export async function POST(request: Request) {
     }
   }
 
+  // A sessão do Checkout expira sozinha (padrão da Stripe: 24h depois de
+  // criada) quando o comprador abre o checkout mas nunca termina de pagar —
+  // isso é diferente de um pagamento recusado, por isso o status é "canceled"
+  // e não "failed".
   if (event.type === "checkout.session.expired") {
     const session = event.data.object as Stripe.Checkout.Session;
     const orderId = session.metadata?.orderId;
     if (orderId) {
-      await admin.from("orders_saludperfecta").update({ status: "failed" }).eq("id", orderId);
+      await admin.from("orders_saludperfecta").update({ status: "canceled" }).eq("id", orderId);
     }
   }
 

@@ -9,6 +9,7 @@ const STATUS_LABEL: Record<Order["status"], string> = {
   mock_paid: "Pago (simulado)",
   paid: "Pago",
   failed: "Falhou",
+  canceled: "Cancelado",
 };
 
 export default async function DashboardOrdersPage() {
@@ -46,11 +47,15 @@ export default async function DashboardOrdersPage() {
                 </td>
                 <td className="px-5 py-3 text-slate-700">{order.product_slug}</td>
                 <td className="px-5 py-3 text-slate-500">{order.items.map((item) => item.name).join(", ")}</td>
-                <td className="px-5 py-3 font-semibold text-brand-900">{formatPrice(order.total_cents, order.currency)}</td>
+                <td className="px-5 py-3 font-semibold text-brand-900">{formatPrice(order.total_usd_cents, "USD")}</td>
                 <td className="px-5 py-3">
-                  <Badge tone={order.status === "failed" ? "neutral" : "brand"}>{STATUS_LABEL[order.status]}</Badge>
+                  <Badge tone={order.status === "failed" || order.status === "canceled" ? "neutral" : "brand"}>
+                    {STATUS_LABEL[order.status]}
+                  </Badge>
                 </td>
-                <td className="px-5 py-3 text-slate-500">{new Date(order.created_at).toLocaleString("pt-BR")}</td>
+                <td className="px-5 py-3 text-slate-500">
+                  {new Date(order.created_at).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}
+                </td>
               </tr>
             ))}
             {orders && orders.length === 0 ? (
