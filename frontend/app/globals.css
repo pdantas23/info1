@@ -97,14 +97,6 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
-/* Elementos revelados en el momento del pitch del video (ver
-   PITCH_REVEAL_SECONDS en HeroVideo.tsx / displayHiddenElements de VTurb).
-   !important porque conviven con utilidades de Tailwind (ej. "flex") que
-   tienen la misma especificidad y podrían ganar el empate de cascada. */
-.hide {
-  display: none !important;
-}
-
 /* Controles nativos recortados en los videos de testimonios: sin duración
    total, sin botón de pantalla completa y sin control de sonido/volumen.
    Solo funciona en navegadores basados en WebKit/Blink (Chrome, Safari);

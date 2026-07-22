@@ -222,8 +222,7 @@ export default function LandingPage() {
               </p>
             </div>
 
-            {/* Oculto hasta el pitch del video — ver PITCH_REVEAL_SECONDS en HeroVideo.tsx */}
-            <div className="hide mx-auto flex w-full max-w-sm flex-col items-center gap-5 text-center">
+            <div className="mx-auto flex w-full max-w-sm flex-col items-center gap-5 text-center">
               <LinkButton href={CHECKOUT_HREF} size="lg">
                 ¡Quiero comenzar ahora!
               </LinkButton>
@@ -267,8 +266,7 @@ export default function LandingPage() {
             </div>
           ))}
         </div>
-        {/* Oculto hasta el pitch del video — ver PITCH_REVEAL_SECONDS en HeroVideo.tsx */}
-        <div className="hide mx-auto mt-10 flex w-full max-w-sm flex-col items-center gap-5 text-center">
+        <div className="mx-auto mt-10 flex w-full max-w-sm flex-col items-center gap-5 text-center">
           <LinkButton href={CHECKOUT_HREF} size="lg">
             ¡Quiero comenzar ahora!
           </LinkButton>

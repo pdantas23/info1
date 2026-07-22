@@ -18,11 +18,6 @@ const playerSrc = `https://scripts.converteai.net/${VTURB_ACCOUNT_ID}/players/${
 const smartplayerSdkSrc = "https://scripts.converteai.net/lib/js/smartplayer-wc/v4/smartplayer.js";
 const hlsSrc = `https://cdn.converteai.net/${VTURB_ACCOUNT_ID}/${VTURB_VIDEO_ID}/main.m3u8`;
 
-// TODO: ajustar al segundo exacto en que empieza el pitch dentro del video.
-// Todo elemento con className="hide" en la página queda oculto hasta ese
-// segundo (funcionalidad nativa del player: displayHiddenElements).
-const PITCH_REVEAL_SECONDS = 60;
-
 export function HeroVideo() {
   ReactDOM.preload(playerSrc, { as: "script" });
   ReactDOM.preload(smartplayerSdkSrc, { as: "script" });
@@ -49,18 +44,6 @@ export function HeroVideo() {
             s.src = "${playerSrc}";
             s.async = true;
             document.head.appendChild(s);
-          })();
-        `}
-      </Script>
-      <Script id={`${playerId}-pitch-reveal`} strategy="afterInteractive">
-        {`
-          (function() {
-            var player = document.querySelector("vturb-smartplayer");
-            if (!player || player.dataset.pitchRevealBound) return;
-            player.dataset.pitchRevealBound = "1";
-            player.addEventListener("player:ready", function() {
-              player.displayHiddenElements(${PITCH_REVEAL_SECONDS}, [".hide"], { persist: true });
-            });
           })();
         `}
       </Script>
