@@ -44,7 +44,20 @@ export async function getVturbSessionStats(params: { start: Date; end: Date }): 
     });
 
     if (!response.ok) return null;
-    return (await response.json()) as VturbSessionStats;
+
+    // La API devuelve `engagement_rate`/`play_rate` como string (ej. "37.13"),
+    // no number — probado a mano. El resto de los campos usados sí vienen
+    // como number.
+    const raw = (await response.json()) as Omit<VturbSessionStats, "engagement_rate" | "play_rate"> & {
+      engagement_rate: string | number;
+      play_rate: string | number;
+    };
+
+    return {
+      ...raw,
+      engagement_rate: Number(raw.engagement_rate),
+      play_rate: Number(raw.play_rate),
+    };
   } catch {
     return null;
   }
