@@ -56,7 +56,7 @@ export default async function DashboardOverviewPage({ searchParams }: { searchPa
   const admin = createAdminClient();
   const { start, end, isAll } = resolveRange(params);
 
-  const [{ data: orders }, { count: leadsCount }, vturbStats] = await Promise.all([
+  const [{ data: orders }, { count: leadsCount }, { count: visitsCount }, vturbStats] = await Promise.all([
     admin
       .from("orders_saludperfecta")
       .select("created_at, total_usd_cents, status")
@@ -67,6 +67,16 @@ export default async function DashboardOverviewPage({ searchParams }: { searchPa
     admin
       .from("leads_saludperfecta")
       .select("id", { count: "exact", head: true })
+      .gte("created_at", start.toISOString())
+      .lte("created_at", end.toISOString()),
+    // Proxy de "visitas ao site": conta o evento "ViewContent" (dispara uma
+    // vez por carregamento da home, ver page.tsx) já auditado nessa tabela.
+    // É visitas/carregamentos de página, não pessoas únicas deduplicadas —
+    // não existe (ainda) um identificador de visitante persistente.
+    admin
+      .from("meta_events_log_saludperfecta")
+      .select("id", { count: "exact", head: true })
+      .eq("event_name", "ViewContent")
       .gte("created_at", start.toISOString())
       .lte("created_at", end.toISOString()),
     getVturbSessionStats({ start, end }),
@@ -88,6 +98,7 @@ export default async function DashboardOverviewPage({ searchParams }: { searchPa
   const activeTo = end.toISOString().slice(0, 10);
 
   const stats = [
+    { label: "Visitas ao site", value: (visitsCount ?? 0).toString() },
     { label: "Receita total", value: formatPrice(revenueCents, currency) },
     { label: "Número de vendas", value: salesCount.toString() },
     { label: "Conversão média", value: `${conversionRate}%` },
@@ -107,7 +118,7 @@ export default async function DashboardOverviewPage({ searchParams }: { searchPa
         <DailySalesChart data={dailySeries} currency={currency} />
       </Card>
 
-      <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
         {stats.map((stat) => (
           <Card key={stat.label} hoverable={false}>
             <p className="text-sm font-semibold text-slate-500">{stat.label}</p>
