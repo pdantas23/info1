@@ -56,31 +56,41 @@ export default async function DashboardOverviewPage({ searchParams }: { searchPa
   const admin = createAdminClient();
   const { start, end, isAll } = resolveRange(params);
 
-  const [{ data: orders }, { count: leadsCount }, { count: visitsCount }, vturbStats] = await Promise.all([
-    admin
-      .from("orders_saludperfecta")
-      .select("created_at, total_usd_cents, status")
-      .gte("created_at", start.toISOString())
-      .lte("created_at", end.toISOString())
-      .order("created_at", { ascending: true })
-      .returns<OrderRow[]>(),
-    admin
-      .from("leads_saludperfecta")
-      .select("id", { count: "exact", head: true })
-      .gte("created_at", start.toISOString())
-      .lte("created_at", end.toISOString()),
-    // Proxy de "visitas ao site": conta o evento "ViewContent" (dispara uma
-    // vez por carregamento da home, ver page.tsx) já auditado nessa tabela.
-    // É visitas/carregamentos de página, não pessoas únicas deduplicadas —
-    // não existe (ainda) um identificador de visitante persistente.
-    admin
-      .from("meta_events_log_saludperfecta")
-      .select("id", { count: "exact", head: true })
-      .eq("event_name", "ViewContent")
-      .gte("created_at", start.toISOString())
-      .lte("created_at", end.toISOString()),
-    getVturbSessionStats({ start, end }),
-  ]);
+  const [{ data: orders }, { count: leadsCount }, { count: visitsCount }, { count: checkoutClicksCount }, vturbStats] =
+    await Promise.all([
+      admin
+        .from("orders_saludperfecta")
+        .select("created_at, total_usd_cents, status")
+        .gte("created_at", start.toISOString())
+        .lte("created_at", end.toISOString())
+        .order("created_at", { ascending: true })
+        .returns<OrderRow[]>(),
+      admin
+        .from("leads_saludperfecta")
+        .select("id", { count: "exact", head: true })
+        .gte("created_at", start.toISOString())
+        .lte("created_at", end.toISOString()),
+      // Proxy de "visitas ao site": conta o evento "ViewContent" (dispara uma
+      // vez por carregamento da home, ver page.tsx) já auditado nessa tabela.
+      // É visitas/carregamentos de página, não pessoas únicas deduplicadas —
+      // não existe (ainda) um identificador de visitante persistente.
+      admin
+        .from("meta_events_log_saludperfecta")
+        .select("id", { count: "exact", head: true })
+        .eq("event_name", "ViewContent")
+        .gte("created_at", start.toISOString())
+        .lte("created_at", end.toISOString()),
+      // Proxy de "cliques em ir para o checkout": conta o evento
+      // "InitiateCheckout", que dispara assim que a página de checkout monta
+      // — ou seja, toda vez que alguém clica em um botão que leva pra lá.
+      admin
+        .from("meta_events_log_saludperfecta")
+        .select("id", { count: "exact", head: true })
+        .eq("event_name", "InitiateCheckout")
+        .gte("created_at", start.toISOString())
+        .lte("created_at", end.toISOString()),
+      getVturbSessionStats({ start, end }),
+    ]);
 
   const allOrders = orders ?? [];
   const paidOrders = allOrders.filter((order) => order.status === "paid" || order.status === "mock_paid");
@@ -99,6 +109,7 @@ export default async function DashboardOverviewPage({ searchParams }: { searchPa
 
   const stats = [
     { label: "Visitas ao site", value: (visitsCount ?? 0).toString() },
+    { label: "Cliques em ir para o checkout", value: (checkoutClicksCount ?? 0).toString() },
     { label: "Receita total", value: formatPrice(revenueCents, currency) },
     { label: "Número de vendas", value: salesCount.toString() },
     { label: "Conversão média", value: `${conversionRate}%` },
@@ -118,7 +129,7 @@ export default async function DashboardOverviewPage({ searchParams }: { searchPa
         <DailySalesChart data={dailySeries} currency={currency} />
       </Card>
 
-      <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
+      <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
         {stats.map((stat) => (
           <Card key={stat.label} hoverable={false}>
             <p className="text-sm font-semibold text-slate-500">{stat.label}</p>
