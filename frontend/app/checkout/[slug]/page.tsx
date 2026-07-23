@@ -16,8 +16,16 @@ function localizePrice(product: Product, currency: string, rate: number): Locali
   };
 }
 
-export default async function CheckoutPage({ params }: { params: Promise<{ slug: string }> }) {
+export default async function CheckoutPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ slug: string }>;
+  searchParams: Promise<{ tier?: string }>;
+}) {
   const { slug } = await params;
+  const { tier } = await searchParams;
+  const initialTier = tier === "base" || tier === "popular" || tier === "complete" ? tier : null;
   const admin = createAdminClient();
 
   const { data: product } = await admin
@@ -59,6 +67,7 @@ export default async function CheckoutPage({ params }: { params: Promise<{ slug:
       upsellProduct={upsellProduct}
       downsellProduct={downsellProduct}
       localization={{ country, currency, rate, prices }}
+      initialTier={initialTier}
     />
   );
 }

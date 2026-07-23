@@ -1,22 +1,25 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from "react";
+import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from "react";
 import Link from "next/link";
 import { Container } from "@/components/ui/Container";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
-import { Input, Select } from "@/components/ui/Input";
+import { Input } from "@/components/ui/Input";
 import { Modal } from "@/components/ui/Modal";
-import { ShieldCheck } from "lucide-react";
-import { AsYouType, getCountryCallingCode, isValidPhoneNumber } from "libphonenumber-js/min";
-import type { CountryCode } from "libphonenumber-js";
 import { formatPrice } from "@/lib/format";
 import { trackEvent } from "@/lib/meta/pixel";
 import { env } from "@/lib/env";
-import { getCountryOptions } from "@/lib/currency/countryList";
 import type { Product } from "@/types";
 
-type Step = "presentation" | "form" | "pay";
+type Tier = "base" | "popular" | "complete";
+
+// Deben coincidir exactamente con las claves usadas en QuizExperience.tsx al
+// finalizar el quiz — es la única forma de traspasar el lead ya capturado
+// hasta este checkout sin pedir los datos de nuevo.
+const NAME_STORAGE_KEY = "quiz_movilidad_total_name";
+const EMAIL_STORAGE_KEY = "quiz_movilidad_total_email";
+const LEAD_ID_STORAGE_KEY = "quiz_movilidad_total_lead_id";
 
 export type LocalizedPrice = { priceCents: number; compareAtPriceCents: number | null };
 export type Localization = {
@@ -39,59 +42,6 @@ function localizeProduct(product: Product, localization: Localization): Product 
     compare_at_price_cents: localized.compareAtPriceCents,
     currency: localization.currency,
   };
-}
-
-function isPhoneEffectivelyEmpty(phone: string, country: CountryCode) {
-  const digits = phone.replace(/\D/g, "");
-  if (!digits) return true;
-  try {
-    return digits === getCountryCallingCode(country);
-  } catch {
-    return false;
-  }
-}
-
-function CheckIcon({ className = "" }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 20 20" fill="currentColor" className={className}>
-      <path
-        fillRule="evenodd"
-        d="M16.7 5.3a1 1 0 010 1.4l-7.5 7.5a1 1 0 01-1.4 0l-3.5-3.5a1 1 0 111.4-1.4l2.8 2.8 6.8-6.8a1 1 0 011.4 0z"
-        clipRule="evenodd"
-      />
-    </svg>
-  );
-}
-
-function Stepper({ labels, current }: { labels: string[]; current: number }) {
-  return (
-    <div className="flex items-start justify-center">
-      {labels.map((label, index) => {
-        const stepNumber = index + 1;
-        const isDone = stepNumber < current;
-        const isActive = stepNumber === current;
-        return (
-          <div key={`${label}-${index}`} className="flex items-start">
-            <div className="flex w-24 shrink-0 flex-col items-center gap-1.5">
-              <div
-                className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-bold transition-colors ${
-                  isDone ? "bg-brand-600 text-white" : isActive ? "bg-brand-900 text-white" : "bg-slate-200 text-slate-500"
-                }`}
-              >
-                {isDone ? <CheckIcon className="h-4 w-4" /> : stepNumber}
-              </div>
-              <span className={`hidden text-center text-xs font-medium sm:block ${isActive ? "text-brand-900" : "text-slate-400"}`}>
-                {label}
-              </span>
-            </div>
-            {index < labels.length - 1 ? (
-              <div className={`mx-1 mt-4 h-0.5 w-8 shrink-0 sm:w-16 ${isDone ? "bg-brand-600" : "bg-slate-200"}`} />
-            ) : null}
-          </div>
-        );
-      })}
-    </div>
-  );
 }
 
 function ProductOffer({
@@ -167,39 +117,52 @@ function OrderLineItem({
   );
 }
 
-function PayStep({
+// Único paso del checkout: resumen del pedido + pago. Si el visitante ya
+// trae email/leadId del quiz no ve ningún campo — si no, se le pide apenas
+// el correo (obligatorio para /api/checkout) junto al propio botón de pagar,
+// sin una pantalla separada para eso.
+function OrderSummary({
   product,
   extraProducts,
   setSelectedExtraSlugs,
   subtotalCents,
   leadId,
+  setLeadId,
   form,
+  setForm,
   country,
   error,
   setError,
   submitting,
   setSubmitting,
   downsellProduct,
+  initialDownsellResolved,
+  restrictDownsellToEmptyCart,
 }: {
   product: Product;
   extraProducts: Product[];
   setSelectedExtraSlugs: Dispatch<SetStateAction<string[]>>;
   subtotalCents: number;
   leadId: string | null;
-  form: { fullName: string; email: string; phone: string };
+  setLeadId: (value: string) => void;
+  form: { fullName: string; email: string };
+  setForm: Dispatch<SetStateAction<{ fullName: string; email: string }>>;
   country: string;
   error: string | null;
   setError: (value: string | null) => void;
   submitting: boolean;
   setSubmitting: (value: boolean) => void;
   downsellProduct: Product | null;
+  initialDownsellResolved: boolean;
+  restrictDownsellToEmptyCart: boolean;
 }) {
   const [showDownsell, setShowDownsell] = useState(false);
-  const [downsellResolved, setDownsellResolved] = useState(false);
+  const [downsellResolved, setDownsellResolved] = useState(initialDownsellResolved);
+  const [emailError, setEmailError] = useState<string | null>(null);
 
   // Cria la orden y redirige al Checkout hospedado por la propia Stripe: los
   // datos de pago nunca pasan por nuestro servidor.
-  async function handlePay(extraSlugsOverride?: string[]) {
+  async function handlePay(currentLeadId: string | null, extraSlugsOverride?: string[]) {
     setError(null);
     setSubmitting(true);
     try {
@@ -209,7 +172,7 @@ function PayStep({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           productSlug: product.slug,
-          leadId,
+          leadId: currentLeadId,
           email: form.email,
           fullName: form.fullName,
           extraProductSlugs,
@@ -226,15 +189,53 @@ function PayStep({
     }
   }
 
-  // La 3ª oferta (downsell) siempre aparece la primera vez que se hace clic en
-  // pagar, sin importar si la 2ª oferta fue aceptada o no. Al resolverla, el
-  // carrito se actualiza y el pago continúa automáticamente (sin un segundo clic).
-  function handlePayButtonClick() {
-    if (downsellProduct && !downsellResolved) {
+  // Si todavía no hay lead (nombre/correo no vinieron del quiz), lo crea acá
+  // mismo antes de pagar — no hay una pantalla separada para esto.
+  async function ensureLead(): Promise<string | null> {
+    if (leadId) return leadId;
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
+      setEmailError("Ingresa un correo electrónico válido.");
+      return null;
+    }
+    setEmailError(null);
+    setSubmitting(true);
+    try {
+      const response = await fetch(`${env.apiUrl}/api/leads`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ productSlug: product.slug, fullName: form.fullName, email: form.email, country }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error("No se pudo guardar tus datos. Intenta de nuevo.");
+      setLeadId(data.leadId);
+      trackEvent("Lead", { email: form.email, customData: { content_name: product.name, product_slug: product.slug } });
+      return data.leadId as string;
+    } catch (leadError) {
+      setError(leadError instanceof Error ? leadError.message : "No se pudo guardar tus datos. Intenta de nuevo.");
+      return null;
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  // La 3ª oferta (downsell) aparece la primera vez que se hace clic en pagar,
+  // sin importar si la 2ª oferta fue aceptada o no. Al resolverla, el carrito
+  // se actualiza y el pago continúa automáticamente (sin un segundo clic).
+  // Excepción: cuando se llega desde el quiz con un nivel ya elegido
+  // (restrictDownsellToEmptyCart), el downsell solo tiene sentido si el
+  // carrito sigue siendo apenas el producto base — si ya se sumó el upsell,
+  // ofrecer también el downsell no encaja con lo que el visitante eligió.
+  async function handlePayButtonClick() {
+    const currentLeadId = await ensureLead();
+    if (!currentLeadId) return;
+
+    const shouldOfferDownsell =
+      downsellProduct && !downsellResolved && (!restrictDownsellToEmptyCart || extraProducts.length === 0);
+    if (shouldOfferDownsell) {
       setShowDownsell(true);
       return;
     }
-    handlePay();
+    handlePay(currentLeadId);
   }
 
   function acceptDownsell() {
@@ -246,13 +247,13 @@ function PayStep({
       customData: { content_name: downsellProduct.name, value: downsellProduct.price_cents / 100, currency: downsellProduct.currency },
     });
     setSelectedExtraSlugs((current) => (current.includes(downsellProduct.slug) ? current : [...current, downsellProduct.slug]));
-    handlePay([...extraProducts.map((extra) => extra.slug), downsellProduct.slug]);
+    handlePay(leadId, [...extraProducts.map((extra) => extra.slug), downsellProduct.slug]);
   }
 
   function declineDownsell() {
     setShowDownsell(false);
     setDownsellResolved(true);
-    handlePay(extraProducts.map((extra) => extra.slug));
+    handlePay(leadId, extraProducts.map((extra) => extra.slug));
   }
 
   return (
@@ -283,6 +284,27 @@ function PayStep({
           <span className="text-2xl font-extrabold text-brand-900">{formatPrice(subtotalCents, product.currency)}</span>
         </div>
 
+        {!leadId ? (
+          <div className="mt-6 space-y-3 border-t border-brand-100 pt-6">
+            <Input
+              id="fullName"
+              label="Nombre (opcional)"
+              value={form.fullName}
+              onChange={(e) => setForm({ ...form, fullName: e.target.value })}
+            />
+            <Input
+              id="email"
+              type="email"
+              label="Correo electrónico"
+              placeholder="Ej: nombre@correo.com"
+              required
+              value={form.email}
+              onChange={(e) => setForm({ ...form, email: e.target.value })}
+              error={emailError ?? undefined}
+            />
+          </div>
+        ) : null}
+
         {error ? <p className="mt-3 text-sm text-red-600">{error}</p> : null}
 
         <div className="mt-6 flex justify-center">
@@ -290,9 +312,9 @@ function PayStep({
             {submitting ? "Redirigiendo..." : "Pagar"}
           </Button>
         </div>
-        <div className="mt-4 flex items-center justify-center gap-1.5 text-xs text-slate-400">
-          <ShieldCheck className="h-3.5 w-3.5 text-brand-500" strokeWidth={2} />
-          <span>Serás redirigido a Stripe para pagar de forma 100% segura</span>
+        <div className="mt-4 flex justify-center">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/fotos/garantias.png" alt="Compra 100% segura y protegida" className="h-14 w-auto sm:h-16" />
         </div>
       </Card>
 
@@ -309,29 +331,29 @@ export function CheckoutExperience({
   product,
   upsellProduct,
   downsellProduct,
-  localization: initialLocalization,
+  localization,
+  initialTier,
 }: {
   product: Product;
   upsellProduct: Product | null;
   downsellProduct: Product | null;
   localization: Localization;
+  initialTier: Tier | null;
 }) {
-  const [step, setStep] = useState<Step>("presentation");
   const [leadId, setLeadId] = useState<string | null>(null);
   const [selectedExtraSlugs, setSelectedExtraSlugs] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showUpsell, setShowUpsell] = useState(false);
   const [upsellResolved, setUpsellResolved] = useState(false);
-  const [localization, setLocalization] = useState<Localization>(initialLocalization);
+  const [resolvedTier, setResolvedTier] = useState<Tier | null>(null);
+  // Evita el parpadeo del formulario de correo cuando se llega desde el quiz:
+  // mientras se confirma el lead guardado en sessionStorage, no se muestra
+  // nada todavía. Se inicializa a partir de un prop (no de una API del
+  // navegador), así que es idéntico en el render del servidor y del cliente.
+  const [hydrating, setHydrating] = useState(Boolean(initialTier));
 
-  const [form, setForm] = useState({ fullName: "", email: "", phone: "" });
-  const [fieldErrors, setFieldErrors] = useState<{ fullName?: string; email?: string; phone?: string }>({});
-  const hasEditedPhoneRef = useRef(false);
-  const countryOptions = useMemo(() => getCountryOptions(), []);
-
-  const stepLabels = ["Producto", "Tus datos", "Pago"];
-  const currentStepNumber = step === "presentation" ? 1 : step === "form" ? 2 : 3;
+  const [form, setForm] = useState({ fullName: "", email: "" });
 
   const localizedProduct = useMemo(() => localizeProduct(product, localization), [product, localization]);
   const localizedUpsell = useMemo(() => (upsellProduct ? localizeProduct(upsellProduct, localization) : null), [upsellProduct, localization]);
@@ -352,28 +374,49 @@ export function CheckoutExperience({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Precompleta el teléfono con el DDI del país (detectado por IP, o el
-  // elegido en el selector manual) — deja de tocarlo en cuanto el visitante
-  // escriba algo (hasEditedPhoneRef), en vez de intentar adivinar por
-  // comparación de strings si el valor actual es "solo el prefijo".
+  // El nivel (?tier=...) decide qué productos van pre-seleccionados en el
+  // carrito — esto NO depende de si hay o no un lead guardado, se aplica
+  // siempre que haya un nivel en la URL. Depende de `initialTier` (no solo
+  // se ejecuta al montar): si el visitante navega de un nivel a otro sin
+  // recarga completa (ej. vuelve a /resultado y elige otro plan), Next.js
+  // puede reutilizar la misma instancia del componente — sin esta
+  // dependencia, la selección del nivel nuevo nunca se aplicaría.
   useEffect(() => {
-    if (hasEditedPhoneRef.current) return;
-    let prefix: string;
-    try {
-      prefix = `+${getCountryCallingCode(localization.country as CountryCode)} `;
-    } catch {
-      return;
-    }
-    setForm((current) => ({ ...current, phone: prefix }));
-  }, [localization.country]);
+    if (!initialTier) return;
 
-  // El pop-up del upsell aparece un momento después de llegar al paso de
-  // pago (checkout), no apenas carga la página.
+    const initialSlugs: string[] = [];
+    if ((initialTier === "popular" || initialTier === "complete") && downsellProduct) initialSlugs.push(downsellProduct.slug);
+    if (initialTier === "complete" && upsellProduct) initialSlugs.push(upsellProduct.slug);
+
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- sincroniza el carrito con el nivel de la URL al montar o al cambiar de nivel, ver comentario arriba.
+    setSelectedExtraSlugs(initialSlugs);
+    setUpsellResolved(initialTier === "complete");
+    setResolvedTier(initialTier);
+
+    // Si además hay un lead ya guardado en sessionStorage (se llegó desde el
+    // quiz), se usan esos datos (nombre, correo, id del lead) para no
+    // pedirlos de nuevo — esto es independiente de la selección de arriba.
+    try {
+      const storedLeadId = sessionStorage.getItem(LEAD_ID_STORAGE_KEY);
+      const storedEmail = sessionStorage.getItem(EMAIL_STORAGE_KEY);
+      const storedName = sessionStorage.getItem(NAME_STORAGE_KEY);
+      if (storedLeadId && storedEmail) {
+        setForm((current) => ({ ...current, fullName: storedName ?? current.fullName, email: storedEmail }));
+        setLeadId(storedLeadId);
+      }
+    } catch {
+      // sessionStorage puede fallar en modo privado — se pide el correo en pantalla.
+    } finally {
+      setHydrating(false);
+    }
+  }, [initialTier, downsellProduct, upsellProduct]);
+
+  // El pop-up del upsell aparece un momento después de cargar la página.
   useEffect(() => {
-    if (step !== "pay" || !upsellProduct || upsellResolved) return;
+    if (hydrating || !upsellProduct || upsellResolved) return;
     const timer = setTimeout(() => setShowUpsell(true), 500);
     return () => clearTimeout(timer);
-  }, [step, upsellProduct, upsellResolved]);
+  }, [hydrating, upsellProduct, upsellResolved]);
 
   // El producto principal y cada oferta aceptada (upsell y/o downsell) se
   // suman: ninguna reemplaza a otra.
@@ -388,22 +431,6 @@ export function CheckoutExperience({
     () => localizedProduct.price_cents + acceptedExtraProducts.reduce((sum, extra) => sum + extra.price_cents, 0),
     [localizedProduct.price_cents, acceptedExtraProducts]
   );
-
-  async function handleCountryChange(newCountry: string) {
-    const slugs = [product.slug, upsellProduct?.slug, downsellProduct?.slug].filter((slug): slug is string => Boolean(slug));
-    try {
-      const response = await fetch(`${env.apiUrl}/api/localize`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ country: newCountry, slugs }),
-      });
-      const data = await response.json();
-      if (!response.ok) return;
-      setLocalization({ country: data.country, currency: data.currency, rate: data.rate, prices: data.products });
-    } catch {
-      // Best-effort: se a troca manual falhar, mantém a localização anterior.
-    }
-  }
 
   function acceptUpsell() {
     if (!upsellProduct || !localizedUpsell) return;
@@ -420,199 +447,37 @@ export function CheckoutExperience({
     setShowUpsell(false);
   }
 
-  function validateLeadForm() {
-    const errors: { fullName?: string; email?: string; phone?: string } = {};
-    if (!form.fullName.trim()) {
-      errors.fullName = "Este campo es obligatorio.";
-    }
-    if (!form.email.trim()) {
-      errors.email = "Este campo es obligatorio.";
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
-      errors.email = "Ingresa un correo electrónico válido.";
-    }
-    const phoneCountry = localization.country as CountryCode;
-    if (!isPhoneEffectivelyEmpty(form.phone, phoneCountry) && !isValidPhoneNumber(form.phone, phoneCountry)) {
-      errors.phone = "Ingresa un número de teléfono válido.";
-    }
-    return errors;
-  }
-
-  async function handleLeadSubmit(formEvent: React.FormEvent) {
-    formEvent.preventDefault();
-
-    const errors = validateLeadForm();
-    setFieldErrors(errors);
-    if (Object.keys(errors).length > 0) return;
-
-    setError(null);
-    setSubmitting(true);
-    try {
-      const response = await fetch(`${env.apiUrl}/api/leads`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ productSlug: product.slug, ...form, country: localization.country }),
-      });
-      const data = await response.json();
-      if (!response.ok) throw new Error("No se pudo guardar tus datos. Intenta de nuevo.");
-
-      setLeadId(data.leadId);
-      trackEvent("Lead", {
-        email: form.email,
-        phone: form.phone,
-        customData: { content_name: localizedProduct.name, product_slug: localizedProduct.slug },
-      });
-
-      setStep("pay");
-    } catch (submitError) {
-      setError(submitError instanceof Error ? submitError.message : "No se pudo guardar tus datos. Intenta de nuevo.");
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
   return (
     <main className="min-h-screen bg-brand-50 py-10">
       <Container className="max-w-3xl">
-        <Link href="/" className="text-sm font-semibold text-brand-600 hover:text-brand-800">
+        <Link href={initialTier ? "/resultado" : "/"} className="text-sm font-semibold text-brand-600 hover:text-brand-800">
           ← Volver
         </Link>
 
-        {step !== "presentation" ? (
-          <Card className="mt-6" hoverable={false}>
-            <p className="text-sm font-semibold text-brand-500">Estás por adquirir</p>
-            <p className="text-lg font-bold text-brand-900">{localizedProduct.name}</p>
-          </Card>
-        ) : null}
-
-        {step === "presentation" ? (
-          <Card className="mx-auto mt-6 max-w-3xl" hoverable={false}>
-            <div className="flex flex-col items-center gap-6">
-              <h1 className="text-center font-heading text-3xl font-extrabold leading-[1.1] tracking-tight text-transparent sm:text-4xl bg-gradient-to-r from-brand-600 via-brand-500 to-accent-500 bg-clip-text">
-                {localizedProduct.name}
-              </h1>
-
-              {localizedProduct.image_path ? (
-                <div className="w-full px-6">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={localizedProduct.image_path}
-                    alt={localizedProduct.name}
-                    className="aspect-[3/2] w-full rounded-xl object-cover"
-                  />
-                </div>
-              ) : null}
-
-              <div className="w-full text-left">
-                {localizedProduct.headline ? <p className="text-lg font-semibold text-brand-700">{localizedProduct.headline}</p> : null}
-                {localizedProduct.subheadline ? <p className="mt-1 text-slate-600">{localizedProduct.subheadline}</p> : null}
-                {localizedProduct.description ? (
-                  <p className="mt-4 text-sm leading-relaxed text-slate-600">{localizedProduct.description}</p>
-                ) : null}
-                <div className="mt-6 flex items-center justify-center gap-3">
-                  <span className="text-2xl font-extrabold text-brand-900">
-                    {formatPrice(localizedProduct.price_cents, localizedProduct.currency)}
-                  </span>
-                  {localizedProduct.compare_at_price_cents ? (
-                    <span className="text-base text-red-600 line-through">
-                      {formatPrice(localizedProduct.compare_at_price_cents, localizedProduct.currency)}
-                    </span>
-                  ) : null}
-                </div>
-              </div>
-
-              <Button size="lg" onClick={() => setStep("form")}>
-                <span className="text-xl">¡Sí, lo quiero ahora!</span>
-              </Button>
-              <div className="flex items-center justify-center gap-1.5 text-xs text-slate-400">
-                <ShieldCheck className="h-3.5 w-3.5 text-brand-500" strokeWidth={2} />
-                <span>Compra 100% segura y protegida</span>
-              </div>
-            </div>
-          </Card>
-        ) : null}
-
-        {step === "form" ? (
-          <Card className="mt-6" hoverable={false}>
-            <h1 className="text-xl font-bold text-brand-900">Tus datos</h1>
-            <p className="mt-1 text-sm text-slate-500">
-              Los usamos únicamente para enviarte el acceso al programa. Nunca los compartimos ni recibirás spam.
-            </p>
-            <form onSubmit={handleLeadSubmit} className="mt-6 space-y-4">
-              <Input
-                id="fullName"
-                label="Nombre completo"
-                required
-                value={form.fullName}
-                onChange={(e) => setForm({ ...form, fullName: e.target.value })}
-                error={fieldErrors.fullName}
-              />
-              <Input
-                id="email"
-                type="email"
-                label="Correo electrónico"
-                placeholder="Ej: nombre@correo.com"
-                required
-                value={form.email}
-                onChange={(e) => setForm({ ...form, email: e.target.value })}
-                error={fieldErrors.email}
-              />
-              <Select
-                id="country"
-                label="País"
-                value={localization.country}
-                onChange={(e) => handleCountryChange(e.target.value)}
-              >
-                {countryOptions.map((option) => (
-                  <option key={option.code} value={option.code}>
-                    {option.label}
-                  </option>
-                ))}
-              </Select>
-              <Input
-                id="phone"
-                type="tel"
-                autoComplete="off"
-                label="Teléfono (WhatsApp)"
-                placeholder="Ej: +52 55 1234 5678"
-                value={form.phone}
-                onChange={(e) => {
-                  hasEditedPhoneRef.current = true;
-                  setForm({ ...form, phone: new AsYouType(localization.country as CountryCode).input(e.target.value) });
-                }}
-                error={fieldErrors.phone}
-              />
-              {error ? <p className="text-sm text-red-600">{error}</p> : null}
-              <Button type="submit" size="lg" className="w-full" disabled={submitting}>
-                {submitting ? "Guardando..." : "Continuar"}
-              </Button>
-            </form>
-            <div className="mt-4 flex items-center justify-center gap-1.5 text-xs text-slate-400">
-              <ShieldCheck className="h-3.5 w-3.5 text-brand-500" strokeWidth={2} />
-              <span>Datos encriptados — solo se usan para enviarte tu compra, nunca se comparten</span>
-            </div>
-          </Card>
-        ) : null}
-
-        {step === "pay" ? (
-          <PayStep
+        {hydrating ? (
+          <div className="mt-16 flex justify-center">
+            <p className="text-sm font-medium text-slate-400">Cargando tu pedido…</p>
+          </div>
+        ) : (
+          <OrderSummary
             product={localizedProduct}
             extraProducts={acceptedExtraProducts}
             setSelectedExtraSlugs={setSelectedExtraSlugs}
             subtotalCents={subtotalCents}
             leadId={leadId}
+            setLeadId={setLeadId}
             form={form}
+            setForm={setForm}
             country={localization.country}
             error={error}
             setError={setError}
             submitting={submitting}
             setSubmitting={setSubmitting}
             downsellProduct={localizedDownsell}
+            initialDownsellResolved={resolvedTier === "popular" || resolvedTier === "complete"}
+            restrictDownsellToEmptyCart={resolvedTier !== null}
           />
-        ) : null}
-
-        <div className="mt-6">
-          <Stepper labels={stepLabels} current={currentStepNumber} />
-        </div>
+        )}
       </Container>
 
       {showUpsell && localizedUpsell ? (
