@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { connection } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { ResultadoExperience } from "./ResultadoExperience";
 import type { Product } from "@/types";
@@ -8,6 +9,12 @@ export const metadata: Metadata = {
 };
 
 export default async function ResultadoPage() {
+  // Fuerza render dinámico: sin esto, Next intenta pre-renderizar esta
+  // página como estática en el build (no usa ninguna API dinámica), lo que
+  // exigiría SUPABASE_SERVICE_ROLE_KEY como build-arg. De paso, los precios
+  // y productos siempre quedan al día, igual que en /checkout.
+  await connection();
+
   const admin = createAdminClient();
   const { data: products } = await admin
     .from("products_saludperfecta")
