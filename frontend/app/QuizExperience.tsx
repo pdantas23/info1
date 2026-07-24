@@ -152,7 +152,7 @@ export function QuizExperience() {
   }
 
   function confirmMulti() {
-    if (!question) return;
+    if (!question || multiDraft.length === 0) return;
     const next = { ...answers, [question.id]: multiDraft };
     persistAnswers(next);
     stampNow(`q-${question.id}-user`);
@@ -244,7 +244,7 @@ export function QuizExperience() {
                 </button>
               );
             })}
-            <Button size="lg" className="mt-1 w-full" onClick={confirmMulti}>
+            <Button size="lg" className="mt-1 w-full" onClick={confirmMulti} disabled={multiDraft.length === 0}>
               Continuar
             </Button>
           </div>

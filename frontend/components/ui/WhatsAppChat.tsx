@@ -51,8 +51,8 @@ export function WhatsAppScreen({
   avatarSrc?: string;
 }) {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#0b141a] sm:p-6">
-      <div className="flex h-screen w-full max-w-md flex-col overflow-hidden bg-[#e5ddd5] sm:h-[calc(100vh-3rem)] sm:rounded-2xl sm:shadow-2xl">
+    <div className="flex min-h-dvh items-center justify-center bg-[#0b141a] sm:p-6">
+      <div className="flex h-dvh w-full max-w-md flex-col overflow-hidden bg-[#e5ddd5] sm:h-[calc(100dvh-3rem)] sm:rounded-2xl sm:shadow-2xl">
         <header className="flex h-14 shrink-0 items-center gap-1 bg-[#075e54] px-1">
           <button
             type="button"

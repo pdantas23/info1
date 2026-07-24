@@ -47,7 +47,7 @@ function PricingGrid({
 }) {
   return (
     <>
-      <div className="mx-auto mt-8 grid max-w-4xl grid-cols-1 gap-5 sm:grid-cols-3 sm:items-start">
+      <div className="mx-auto mt-8 grid max-w-4xl grid-cols-1 gap-5 sm:grid-cols-3 sm:items-stretch">
         {tiers.map((tier) => {
           const isSelected = tier.key === selectedTier;
           const totalPrice = tier.products.reduce((sum, p) => sum + p.price_cents, 0);
@@ -59,6 +59,8 @@ function PricingGrid({
               onClick={() => onSelectTier(tier.key)}
               aria-pressed={isSelected}
               className={`relative rounded-2xl border-2 bg-white p-6 text-center shadow-[0_1px_2px_rgba(15,46,42,0.05)] transition-all ${
+                tier.highlight ? "sm:z-10 sm:scale-105" : ""
+              } ${
                 isSelected ? "border-brand-600 shadow-lg sm:-translate-y-2" : "border-brand-100/70 hover:border-brand-300"
               }`}
             >
@@ -215,7 +217,7 @@ export function ResultadoExperience({ mainProduct, extraProducts }: { mainProduc
           </p>
         </div>
         {mainProduct.image_path ? (
-          <div className="mx-auto mt-8 max-w-xl overflow-hidden rounded-2xl shadow-xl ring-1 ring-brand-900/10">
+          <div className="mx-auto mt-8 max-w-xl overflow-hidden rounded-2xl shadow-xl ring-1 ring-brand-900/10 sm:max-w-sm">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={mainProduct.image_path} alt={mainProduct.name} className="h-auto w-full object-contain" />
           </div>
